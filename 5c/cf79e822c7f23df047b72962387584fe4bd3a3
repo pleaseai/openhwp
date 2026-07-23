@@ -1,0 +1,27 @@
+.gitignore
+  s_2bc3b2b97d9663::t_8deafda0feee38 1-29
+LICENSE
+  s_2bc3b2b97d9663::t_7c4e7e84491290 1-21
+README.md
+  s_2bc3b2b97d9663::t_0b57787a843f64 1-111
+orca.yaml
+  s_2bc3b2b97d9663::t_1cdbbca14e7004 1-16
+.worktreeinclude
+  s_2bc3b2b97d9663::t_592c1c18a59bdc 1-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "5ccf79e822c7f23df047b72962387584fe4bd3a3",
+  "prompts": {},
+  "sessions": {
+    "s_2bc3b2b97d9663": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "101293e3-5bc2-46f9-af32-8487e5f879c2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <amond@amond.net>"
+    }
+  }
+}
