@@ -1,0 +1,41 @@
+deno.json
+  s_3cabe978142e5e::t_210f6dad478411 22,26
+.claude/skills/run-openhwp/SKILL.md
+  s_3cabe978142e5e::t_c7a1614d467a9f 123-128
+  s_3cabe978142e5e::t_130a74108c5ff2 35-36
+src/ui/index.html
+  s_3cabe978142e5e::t_16340cd2d63751 6-10,14
+src/ui/app.js
+  s_3cabe978142e5e::t_d90098057915a9 41-44
+.gitignore
+  s_3cabe978142e5e::t_b8c7254a6e1baf 2-4
+.claude/skills/run-openhwp/driver.ts
+  s_3cabe978142e5e::t_698563aa3194df 16-17,20
+  s_3cabe978142e5e::t_962930a1aa4662 93-97,102-104,130-131
+src/ui/vendor/rhwp/LICENSE
+  s_3cabe978142e5e::t_0b67ddd5e3a362 1-21
+src/ui/vendor/rhwp/rhwp.d.ts
+  s_3cabe978142e5e::t_62f7dd9761fab2 1-2243
+src/ui/vendor/rhwp/rhwp.js
+  s_3cabe978142e5e::t_b018895d27bab6 1-8934
+src/ui/vendor/rhwp/rhwp_bg.wasm.d.ts
+  s_3cabe978142e5e::t_dd8245e632656d 1-358
+src/ui/vendor/rhwp/README.md
+  s_3cabe978142e5e::t_49e4dd4aff9913 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "612bc8b4794f50b7b455d1be2e3749d6f238d492",
+  "prompts": {},
+  "sessions": {
+    "s_3cabe978142e5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b5fb53a-0a69-4beb-87bf-0bb660708e3b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
