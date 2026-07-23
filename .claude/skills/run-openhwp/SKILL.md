@@ -32,8 +32,8 @@ Verified on macOS (Darwin x86_64) this session:
   (the driver's default). Point elsewhere with `OPENHWP_CHROME=/path/to/chrome`
   (e.g. a `chromium` binary on Linux). If the path is missing, [Astral](https://jsr.io/@astral/astral)
   downloads its own Chromium.
-- Network access: the webview loads `@rhwp/core` from esm.sh (import map), and the
-  driver uses Astral from `jsr:` — both fetch on first run.
+- Network access: the rhwp engine is vendored (`src/ui/vendor/rhwp`), so the app
+  runs offline; only the driver's own deps (Astral from `jsr:`) fetch on first run.
 
 ## Build / verify
 
@@ -120,10 +120,12 @@ pkill -f "deno desktop"
   return fails type-check (`TS2739 … missing then/catch/finally`). But marking the
   handler `async` with no `await` trips the `require-await` lint. Use
   `() => Promise.resolve({...})` to satisfy both.
-- **The viewer loads `@rhwp/core` from esm.sh** via the import map in
-  `src/ui/index.html`. The driver confirmed esm.sh serves the package + its
-  `rhwp_bg.wasm` and that `init()` with no argument works — but this makes the app
-  **network-dependent at runtime**. Vendoring the wasm offline is a known TODO.
+- **The viewer loads the vendored `@rhwp/core`** from `src/ui/vendor/rhwp/rhwp.js`
+  (no CDN). It is wasm-bindgen `--target web` output, so `default()` with no
+  argument loads `rhwp_bg.wasm` relative to the JS module — the two files must stay
+  in the same dir. Because there is no inline import map or remote script, the app
+  ships a strict CSP (`script-src 'self' 'wasm-unsafe-eval'`). Update the engine via
+  `src/ui/vendor/rhwp/README.md`.
 - **`rhwp` needs `globalThis.measureTextWidth`** defined before `init()` (a canvas
   text-measure callback); `src/ui/app.js` sets it. Without it, layout breaks.
 - **Astral**: pass the installed browser via `path` (the driver reads

@@ -1,5 +1,7 @@
 # Deno
-vendor/
+# Anchored to the repo root so it only ignores Deno's top-level `deno vendor`
+# output, not the intentionally committed engine at src/ui/vendor/rhwp.
+/vendor/
 node_modules/
 
 # Build output — deno desktop binaries and installers
