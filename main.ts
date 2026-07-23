@@ -1,5 +1,3 @@
-/// <reference path="./src/desktop.d.ts" />
-
 // OpenHWP — Deno desktop host (the "platform shell").
 //
 // The shell is intentionally thin: every document concern (parsing, layout,
@@ -103,8 +101,10 @@ win.addEventListener("menuclick", (event) => {
 });
 
 // 4. Host bindings, callable from the webview as `bindings.<name>(...)`. Kept
-// minimal — file I/O happens in the webview via the File System Access API.
-win.bind("hostInfo", () => ({
-  denoVersion: Deno.version.deno,
-  platform: Deno.build.os,
-}));
+// minimal — file I/O happens in the webview via the File System Access API. The
+// handler returns a Promise (the binding signature expects one).
+win.bind("hostInfo", () =>
+  Promise.resolve({
+    denoVersion: Deno.version.deno,
+    platform: Deno.build.os,
+  }));
