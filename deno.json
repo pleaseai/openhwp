@@ -19,11 +19,11 @@
   "fmt": {
     "lineWidth": 100,
     "include": ["main.ts", "src/"],
-    "exclude": ["dist/", "build/", "vendor/"]
+    "exclude": ["dist/", "build/", "vendor/", "src/ui/vendor/"]
   },
   "lint": {
     "include": ["main.ts", "src/"],
-    "exclude": ["dist/", "build/", "vendor/"]
+    "exclude": ["dist/", "build/", "vendor/", "src/ui/vendor/"]
   },
   "desktop": {
     "app": {

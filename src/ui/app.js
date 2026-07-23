@@ -38,8 +38,10 @@ globalThis.measureTextWidth = (font, text) => {
 let enginePromise;
 function loadEngine() {
   enginePromise ??= (async () => {
-    const mod = await import("@rhwp/core");
-    await mod.default(); // init WASM (uses the package's bundled rhwp_bg.wasm)
+    // Vendored locally (src/ui/vendor/rhwp) — no CDN at runtime. `default()`
+    // loads rhwp_bg.wasm relative to rhwp.js, i.e. from the same vendor dir.
+    const mod = await import("./vendor/rhwp/rhwp.js");
+    await mod.default(); // init WASM
     return mod;
   })();
   return enginePromise;

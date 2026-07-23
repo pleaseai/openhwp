@@ -13,11 +13,11 @@
 // What it does:
 //   1. serve src/ui on an ephemeral port,
 //   2. open it in headless Chrome and screenshot the UI shell,
-//   3. attempt the rhwp render path (load @rhwp/core, render a page to SVG) and
-//      screenshot it — this also verifies the esm.sh/WASM assumption.
+//   3. attempt the rhwp render path (load the vendored @rhwp/core engine, render
+//      a page to SVG) and screenshot it.
 // Exit code is 0 only if the shell smoke check passes AND the rhwp render path
 // succeeds (engine loads + a page renders to non-empty SVG). Any render-path
-// failure — a CDN/network load failure or a post-load render regression — gates.
+// failure — a failed engine load or a post-load render regression — gates.
 
 // The `page.evaluate()` callbacks below run in the browser, so this driver
 // references DOM globals (document, etc.) that deno.json's lib does not provide.
@@ -90,18 +90,18 @@ try {
   ok = shell.hasOpen && shell.placeholder.length > 0 && shell.appReady &&
     shellErrors.length === 0;
 
-  // 3. Render path: load @rhwp/core (esm.sh via the page's import map) and render
-  // a page to SVG, then gate on it — if the engine cannot load or cannot render,
-  // the app cannot display documents, so the run fails. (The engine is currently
-  // CDN-loaded, so a transient esm.sh outage can red CI until it is vendored
-  // locally — see index.html's TODO; re-running recovers a transient blip.)
+  // 3. Render path: load the vendored @rhwp/core engine and render a page to
+  // SVG, then gate on it — if the engine cannot load or cannot render, the app
+  // cannot display documents, so the run fails. The engine is vendored locally
+  // (src/ui/vendor/rhwp), so a load failure is a real regression (missing or
+  // broken vendored files), not a transient CDN blip.
   try {
     const render = await page.evaluate(async () => {
       let loaded = false;
       try {
-        // @ts-ignore browser import map resolves this to esm.sh
-        const mod = await import("@rhwp/core");
-        await mod.default(); // init WASM (fetches rhwp_bg.wasm over the network)
+        // @ts-ignore vendored engine served at /vendor/rhwp/rhwp.js
+        const mod = await import("./vendor/rhwp/rhwp.js");
+        await mod.default(); // init WASM (loaded from the local vendor dir)
         loaded = true;
         const make = mod.HwpDocument.createBlankDocument ?? mod.HwpDocument.createEmpty;
         if (typeof make !== "function") {
@@ -127,10 +127,8 @@ try {
       console.log(`[driver] wrote ${shotPath("render.png")}`);
     } else {
       // The engine failed to load or to render — either way the app cannot
-      // display documents, so fail the run. `loaded` distinguishes a CDN/network
-      // load failure from a post-load render regression for diagnostics only;
-      // both gate. (Once @rhwp is vendored locally a load failure can only be a
-      // real regression — see index.html's vendoring TODO.)
+      // display documents, so fail the run. `loaded` distinguishes a load
+      // failure from a post-load render regression for diagnostics; both gate.
       console.log(`[driver] render failed (gating) [loaded=${render.loaded}]:`, render.why);
       ok = false;
     }
