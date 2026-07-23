@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "repo": "https://github.com/edwardkim/rhwp.git",
+    "version": "0.7.19",
+    "tag": "v0.7.19",
+    "commit": "f137b4c9468eaff5bb43e25108e9c9d39a2ed15b",
+    "sparsePaths": ["rhwp-studio", "assets"],
+    "counterparts": {}
+  },
+  "overrides": []
+}

@@ -1,8 +1,15 @@
 # Deno
 # Anchored to the repo root so it only ignores Deno's top-level `deno vendor`
-# output, not the intentionally committed engine at src/ui/vendor/rhwp.
+# output, not the intentionally committed core at apps/studio-host/vendor/rhwp-core.
 /vendor/
 node_modules/
+
+# Upstream rhwp checkout — materialized by `deno task setup` (scripts/setup-rhwp.ts),
+# pinned in config/rhwp-studio-overrides.json. Not committed (~80 MB sparse checkout).
+third_party/
+
+# Built studio bundle — produced by `deno task build:studio` (also matched by dist/ below).
+apps/studio-host/dist/
 
 # Build output — deno desktop binaries and installers
 build/

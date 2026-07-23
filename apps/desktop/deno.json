@@ -1,0 +1,29 @@
+{
+  "name": "@openhwp/desktop",
+  "version": "0.0.0",
+  "exports": "./main.ts",
+  "compilerOptions": {
+    "lib": ["deno.window", "deno.desktop"]
+  },
+  "tasks": {
+    "dev": "deno desktop --hmr --allow-net --allow-read --allow-env main.ts",
+    "build": "deno desktop --allow-net --allow-read --allow-env --include ../studio-host/dist main.ts",
+    "check": "deno check main.ts"
+  },
+  "imports": {
+    "@std/http": "jsr:@std/http@^1",
+    "@std/path": "jsr:@std/path@^1"
+  },
+  "desktop": {
+    "app": {
+      "name": "OpenHWP",
+      "identifier": "dev.pleaseai.openhwp"
+    },
+    "backend": "cef",
+    "output": {
+      "macos": "dist/OpenHWP.dmg",
+      "windows": "dist/OpenHWP.msi",
+      "linux": "dist/OpenHWP.AppImage"
+    }
+  }
+}
