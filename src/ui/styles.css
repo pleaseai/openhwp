@@ -1,0 +1,69 @@
+:root {
+  color-scheme: light dark;
+  --bg: Canvas;
+  --fg: CanvasText;
+  --border: color-mix(in srgb, CanvasText 15%, transparent);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: 14px/1.4 system-ui, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbar button {
+  font: inherit;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+/* `:not([hidden])` so the `hidden` attribute (toggled from app.js) actually
+   hides the pager — a bare `.pager { display: flex }` would override the UA
+   `[hidden] { display: none }` rule. */
+.pager:not([hidden]) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status {
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+.viewer {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+.viewer svg {
+  max-width: 100%;
+  height: auto;
+  box-shadow: 0 1px 8px rgb(0 0 0 / 15%);
+}
+
+.placeholder {
+  margin: auto;
+  /* Opaque adaptive color that meets AA in both schemes — `opacity: 0.5` on
+     CanvasText composited to ~3.95:1, below the 4.5:1 minimum for body text. */
+  color: color-mix(in srgb, CanvasText 60%, Canvas);
+}

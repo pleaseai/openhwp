@@ -21,6 +21,9 @@ dist/
 # Claude Code local settings (merged shared config; copied into worktrees)
 .claude/settings.local.json
 
+# run-openhwp driver artifacts (regenerated on each run)
+.claude/skills/run-openhwp/screenshots/
+
 # OS / editor noise
 .DS_Store
 Thumbs.db

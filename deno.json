@@ -1,0 +1,40 @@
+{
+  "name": "openhwp",
+  "version": "0.0.0",
+  "exports": "./main.ts",
+  "compilerOptions": {
+    "lib": ["deno.window", "deno.desktop"]
+  },
+  "tasks": {
+    "dev": "deno desktop --hmr --allow-net --allow-read --allow-env main.ts",
+    "build": "deno desktop --allow-net --allow-read --allow-env --include ./src/ui main.ts",
+    "check": "deno check main.ts",
+    "fmt": "deno fmt",
+    "lint": "deno lint",
+    "test": "deno test --allow-read --permit-no-files"
+  },
+  "imports": {
+    "@std/http": "jsr:@std/http@^1"
+  },
+  "fmt": {
+    "lineWidth": 100,
+    "include": ["main.ts", "src/"],
+    "exclude": ["dist/", "build/", "vendor/"]
+  },
+  "lint": {
+    "include": ["main.ts", "src/"],
+    "exclude": ["dist/", "build/", "vendor/"]
+  },
+  "desktop": {
+    "app": {
+      "name": "OpenHWP",
+      "identifier": "dev.pleaseai.openhwp"
+    },
+    "backend": "cef",
+    "output": {
+      "macos": "dist/OpenHWP.dmg",
+      "windows": "dist/OpenHWP.msi",
+      "linux": "dist/OpenHWP.AppImage"
+    }
+  }
+}

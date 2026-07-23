@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.x
+      - run: deno check main.ts
+      - run: deno lint
+      - run: deno fmt --check
+
+  smoke:
+    # Headless UI smoke via the run-openhwp driver: serve src/ui, drive it with
+    # Chrome, and assert the shell renders. (The rhwp render step is best-effort
+    # and does not gate — see the driver.)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.x
+      - uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd # v2.1.2
+        id: chrome
+        with:
+          install-dependencies: true
+      - name: run-openhwp smoke
+        env:
+          OPENHWP_CHROME: ${{ steps.chrome.outputs.chrome-path }}
+        run: deno run -A --no-lock .claude/skills/run-openhwp/driver.ts
