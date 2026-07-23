@@ -9,13 +9,15 @@
       The rhwp document engine (@rhwp/core) is an npm ESM package with a WASM
       payload. Until it is vendored/bundled for offline use it is loaded from a
       CDN via this import map; the CEF (Chromium) backend supports import maps.
-      TODO: vendor @rhwp/core + rhwp_bg.wasm locally so the app works offline.
+      Versions are pinned (not floating) so the exact JS + WASM served is
+      reproducible. TODO: vendor @rhwp/core + rhwp_bg.wasm locally so the app
+      works offline and drops the third-party CDN from the runtime trust path.
     -->
     <script type="importmap">
     {
       "imports": {
-        "@rhwp/core": "https://esm.sh/@rhwp/core",
-        "@rhwp/editor": "https://esm.sh/@rhwp/editor"
+        "@rhwp/core": "https://esm.sh/@rhwp/core@0.7.19",
+        "@rhwp/editor": "https://esm.sh/@rhwp/editor@0.7.19"
       }
     }
     </script>

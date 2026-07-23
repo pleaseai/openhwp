@@ -17,6 +17,11 @@
 //      screenshot it — this also verifies the esm.sh/WASM assumption.
 // Exit code is 0 only if the shell smoke check passes.
 
+// The `page.evaluate()` callbacks below run in the browser, so this driver
+// references DOM globals (document, etc.) that deno.json's lib does not provide.
+// Pull in the DOM lib for this file so `deno check` passes on it.
+/// <reference lib="dom" />
+
 import { serveDir } from "jsr:@std/http@1/file-server";
 import { launch } from "jsr:@astral/astral@0.5";
 
@@ -62,16 +67,26 @@ try {
   await page.goto(base, { waitUntil: "networkidle2" });
   await page.waitForSelector("#viewer");
 
-  // 2. Shell smoke: the toolbar Open button + placeholder must be present.
+  // 2. Shell smoke: the toolbar Open button + placeholder must be present, and
+  // app.js must have initialized (it installs globalThis.openhwp.onMenu). A
+  // module that throws during init leaves the static HTML intact, so checking
+  // only #open/.placeholder would pass a dead UI — require app readiness too.
   const shell = await page.evaluate(() => ({
     hasOpen: !!document.querySelector("#open"),
     placeholder: document.querySelector(".placeholder")?.textContent?.trim() ?? "",
     title: document.title,
+    appReady:
+      typeof (globalThis as { openhwp?: { onMenu?: unknown } }).openhwp?.onMenu === "function",
   }));
   await Deno.writeFile(shotPath("shell.png"), await page.screenshot());
   console.log(`[driver] shell:`, JSON.stringify(shell));
   console.log(`[driver] wrote ${shotPath("shell.png")}`);
-  ok = shell.hasOpen && shell.placeholder.length > 0;
+  // Snapshot console/page errors BEFORE the best-effort render probe so the
+  // probe's own failures stay non-gating.
+  const shellErrors = [...consoleErrors];
+  if (shellErrors.length) console.log(`[driver] shell console errors:`, shellErrors);
+  ok = shell.hasOpen && shell.placeholder.length > 0 && shell.appReady &&
+    shellErrors.length === 0;
 
   // 3. Best-effort render path: load @rhwp/core (esm.sh via the page's import
   // map) and render a page to SVG. Verifies the WASM-over-CDN assumption. Wrapped

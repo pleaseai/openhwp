@@ -17,12 +17,15 @@ import { serveDir } from "@std/http/file-server";
 const UI_ROOT = "src/ui";
 
 // 1. Serve the UI. `deno desktop` selects a loopback port and exposes it via
-// DENO_SERVE_ADDRESS ("tcp:127.0.0.1:<port>"); Deno.serve() binds to that
-// address regardless of any port passed in code.
-Deno.serve((req) => serveDir(req, { fsRoot: UI_ROOT, quiet: true }));
-
-const address = Deno.env.get("DENO_SERVE_ADDRESS") ?? "tcp:127.0.0.1:0";
-const port = Number(address.split(":").at(-1));
+// DENO_SERVE_ADDRESS; Deno.serve() binds to that address regardless of any port
+// passed in code. Read the actually-bound port back from the server rather than
+// re-parsing the env var (which would fall back to port 0 when it is absent,
+// e.g. running this module without the desktop runtime).
+const server = Deno.serve((req) => serveDir(req, { fsRoot: UI_ROOT, quiet: true }));
+if (server.addr.transport !== "tcp") {
+  throw new Error(`OpenHWP UI server expected a TCP address, got ${server.addr.transport}`);
+}
+const port = server.addr.port;
 
 // 2. The runtime creates an implicit initial window; the first BrowserWindow
 // construction adopts it. Navigate it to the local server.

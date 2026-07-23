@@ -33,7 +33,10 @@ body {
   cursor: pointer;
 }
 
-.pager {
+/* `:not([hidden])` so the `hidden` attribute (toggled from app.js) actually
+   hides the pager — a bare `.pager { display: flex }` would override the UA
+   `[hidden] { display: none }` rule. */
+.pager:not([hidden]) {
   display: flex;
   align-items: center;
   gap: 6px;
