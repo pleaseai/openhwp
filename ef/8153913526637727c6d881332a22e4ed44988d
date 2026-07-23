@@ -1,0 +1,21 @@
+.claude/skills/run-openhwp/driver.ts
+  s_3cabe978142e5e::t_ed0779ea1cd7b1 94-97
+  s_3cabe978142e5e::t_aa4f9bc42989a7 129-135
+  s_3cabe978142e5e::t_bb827e704e5622 18-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "ef8153913526637727c6d881332a22e4ed44988d",
+  "prompts": {},
+  "sessions": {
+    "s_3cabe978142e5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b5fb53a-0a69-4beb-87bf-0bb660708e3b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
