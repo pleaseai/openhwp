@@ -1,0 +1,17 @@
+# Contributors whose pull requests are not auto-closed.
+# One GitHub login per line; # starts a comment. Each entry records where it came
+# from and who approved it — leave those trailing comments intact.
+#
+# Add:    comment `lgtm+ @username` on their issue or discussion (maintainers only).
+# Remove: comment `lgtm- @username`.
+#
+# Public org owners, members, and collaborators are already exempt via
+# author_association. Private (concealed) org members are not — the roster below
+# seeds the current pleaseai org membership so their fork PRs aren't gated.
+#
+# Seeded from pleaseai org membership on 2026-07-23.
+amondnet      # pleaseai org member, seeded 2026-07-23
+dannyna       # pleaseai org member, seeded 2026-07-23
+lee-dora      # pleaseai org member, seeded 2026-07-23
+seon-yunjae   # pleaseai org member, seeded 2026-07-23
+yun-gon       # pleaseai org member, seeded 2026-07-23

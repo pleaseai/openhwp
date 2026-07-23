@@ -1,0 +1,58 @@
+name: PR policy
+
+# SECURITY: `pull_request_target` runs in the base-repo context. This workflow
+# is safe only because it never checks out or executes PR code — it only calls
+# the GitHub API. Do not add a checkout of the PR head or any build/test step.
+on: # zizmor: ignore[dangerous-triggers]
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions: {}
+
+jobs:
+  redirect-external:
+    # Only triage fork PRs. A same-repo branch PR needs write access, so it's
+    # already trusted (release version-bump PR, allowlist PRs) — don't close it.
+    if: >-
+      github.event.pull_request.head.repo.full_name != github.repository &&
+      github.event.pull_request.author_association != 'OWNER' &&
+      github.event.pull_request.author_association != 'MEMBER' &&
+      github.event.pull_request.author_association != 'COLLABORATOR'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CLOSE_BODY: |
+            This project doesn't take unsolicited pull requests. See [CONTRIBUTING.md](https://github.com/${{ github.repository }}/blob/${{ github.event.repository.default_branch }}/CONTRIBUTING.md).
+
+            File it instead as:
+            - a bug or fix proposal → an [issue](https://github.com/${{ github.repository }}/issues/new/choose)
+            - a feature → a [discussion](https://github.com/${{ github.repository }}/discussions)
+
+            Once a maintainer takes your issue or discussion forward they'll open an approval PR. After that PR merges, your pull requests stay open. Closing this one.
+        run: |
+          # Approved contributors (.github/APPROVED_CONTRIBUTORS on the default branch) may open PRs freely.
+          lc_author=$(printf '%s' "$AUTHOR" | tr 'A-Z' 'a-z')
+          allowlist=$(mktemp)
+          allowlist_error=$(mktemp)
+          trap 'rm -f "$allowlist" "$allowlist_error"' EXIT
+          if ! gh api "repos/$REPO/contents/.github/APPROVED_CONTRIBUTORS?ref=$DEFAULT_BRANCH" \
+               -H "Accept: application/vnd.github.raw" >"$allowlist" 2>"$allowlist_error"; then
+            if ! grep -q '(HTTP 404)' "$allowlist_error"; then
+              cat "$allowlist_error" >&2
+              exit 1
+            fi
+          elif sed 's/#.*//' "$allowlist" | tr 'A-Z' 'a-z' | tr -d '[:blank:]\r' \
+               | grep -qxF "$lc_author"; then
+            echo "$AUTHOR is an approved contributor; leaving PR open."
+            exit 0
+          fi
+          gh pr comment "$PR" --repo "$REPO" --body "$CLOSE_BODY"
+          gh pr close "$PR" --repo "$REPO"

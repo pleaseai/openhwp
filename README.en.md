@@ -2,107 +2,91 @@
 
 > 한국어: [README.md](./README.md)
 
-**OpenHWP is an open-source HWP/HWPX desktop app built on [Deno desktop](https://docs.deno.com/runtime/desktop/) and [rhwp](https://github.com/edwardkim/rhwp).**
+**OpenHWP is an open-source HWP/HWPX desktop app built with [Deno desktop](https://docs.deno.com/runtime/desktop/) and [rhwp](https://github.com/edwardkim/rhwp).**
 
-It opens, views, and (on the roadmap) edits Korean **HWP** and **HWPX** documents on macOS,
-Windows, and Linux — without Hancom Office. The document engine is [rhwp](https://github.com/edwardkim/rhwp)
-(Rust + WebAssembly); OpenHWP is a thin desktop shell around it.
+It opens and views Korean HWP and HWPX documents on macOS, Windows, and Linux — no Hancom Office required. Editing is on the roadmap. The [rhwp](https://github.com/edwardkim/rhwp) engine (Rust + WebAssembly) parses and renders documents; OpenHWP is a thin desktop shell around it.
 
-> **Status: early / work in progress.** The engine and desktop runtime this project builds on are
-> both young. Expect breaking changes. This repository currently contains the project scaffold and
-> documentation; application code lands next.
+> **Status: early / work in progress.** The repository currently holds the project scaffold and docs — there is no application code yet. Both the engine and the Deno desktop runtime are young, so expect breaking changes.
 
-## Stack
+## How it works
 
-OpenHWP runs on a single **Deno** toolchain and keeps the desktop shell thin, delegating every
-document concern to `rhwp`.
+OpenHWP runs on a single Deno toolchain. It keeps the desktop shell thin and delegates every document concern to rhwp, separating the "document engine" from the "platform shell".
 
-| Concern                | Choice                                                          |
-| ---------------------- | -------------------------------------------------------------- |
-| Desktop shell          | `deno desktop` (Deno host + webview)                           |
-| Rendering engine       | **CEF backend** (Chromium — consistent everywhere)             |
-| Document engine        | `rhwp` via WebAssembly (`@rhwp/core` / `@rhwp/editor`)          |
-| File open / save       | **File System Access API** (`showOpenFilePicker` / `showSaveFilePicker`) |
-| Native menus / windows | Deno desktop menus + `bindings`                                |
-| Toolchain              | Deno (single toolchain)                                        |
+- **Desktop shell** — `deno desktop`. A native window's webview displays whatever `Deno.serve()` returns.
+- **Rendering backend** — CEF (Chromium). Setting `"backend": "cef"` in `deno.json` makes rendering identical on every OS and enables the modern web APIs below.
+- **Document engine** — rhwp, loaded as WebAssembly through npm packages rather than compiled into the shell.
+- **File open / save** — the File System Access API.
+- **Native menus / windows** — Deno desktop menus and `bindings`.
 
-## Architecture
+### Document engine: rhwp
 
-OpenHWP keeps the shell thin and delegates every document concern to `rhwp`, cleanly separating the
-"document engine" from the "platform shell".
+Use [`@rhwp/core`](https://www.npmjs.com/package/@rhwp/core), the WASM parser/renderer, for viewing:
 
-```
-┌────────────────────────────────────────────────────────────┐
-│  deno desktop binary                                        │
-│                                                             │
-│  ┌───────────────┐          ┌───────────────────────────┐  │
-│  │ Deno host      │  bind()  │ Webview (CEF / Chromium)  │  │
-│  │  (main.ts)     │◀────────▶│                           │  │
-│  │                │ bindings │  rhwp engine (WASM):      │  │
-│  │ • Deno.serve() │          │   @rhwp/core  → render     │  │
-│  │ • app menus    │          │   @rhwp/editor → edit UI   │  │
-│  │ • windows      │          │                           │  │
-│  │                │          │  File System Access API:  │  │
-│  │                │          │   showOpenFilePicker()    │  │
-│  │                │          │   showSaveFilePicker()    │  │
-│  └───────────────┘          └───────────────────────────┘  │
-└────────────────────────────────────────────────────────────┘
+```js
+import init, { HwpDocument } from "@rhwp/core";
+
+await init();
+const doc = new HwpDocument(bytes);
+document.querySelector("#viewer").innerHTML = doc.renderPageSvg(0);
 ```
 
-- **Deno desktop shell** — `Deno.serve()` provides the UI to a native window; the **CEF backend**
-  (`"backend": "cef"` in `deno.json`) embeds Chromium so rendering is identical across platforms and
-  the modern web APIs below are available. Native application menus and window management use
-  `Deno.BrowserWindow` (`setApplicationMenu`, the `menuclick` event) and expose host functions to
-  the webview through [`bindings`](https://docs.deno.com/runtime/desktop/bindings/).
-- **rhwp engine (WebAssembly)** — parsing, layout, and rendering come from `rhwp`, consumed as npm
-  packages rather than compiled into the shell:
-  - [`@rhwp/core`](https://www.npmjs.com/package/@rhwp/core) — the WASM parser/renderer
-    (`import init, { HwpDocument } from '@rhwp/core'` → `await init()` → `new HwpDocument(bytes)` →
-    `doc.renderPageSvg(0)`), used for viewing.
-  - [`@rhwp/editor`](https://www.npmjs.com/package/@rhwp/editor) — the full editor UI
-    (`createEditor('#editor')`, iframe-embedded), used for editing.
-- **File open / save** — the **[File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker)**.
-  Because the CEF backend is Chromium and Deno serves the app from `localhost` (a secure context),
-  `window.showOpenFilePicker({ types: [{ accept: { 'application/octet-stream': ['.hwp', '.hwpx'] } }] })`
-  and `window.showSaveFilePicker(...)` give real native dialogs, and the returned
-  `FileSystemFileHandle` is retained so **Save** rewrites the same file with no re-prompt. This
-  removes the need for a native file-picker on the Deno side (Deno desktop does not yet ship one).
+Use [`@rhwp/editor`](https://www.npmjs.com/package/@rhwp/editor), the full editor UI embedded as an iframe, for editing:
 
-## Development
+```js
+import { createEditor } from "@rhwp/editor";
 
-> Application code (the `deno.json` `desktop` block, `main.ts`, and UI) is not in the repository yet.
-> The workflow below is the intended shape and will be filled in as the app is implemented.
+const editor = await createEditor("#editor");
+```
 
-### Prerequisites
+### File open / save: the File System Access API
 
-- [Deno](https://deno.com) **≥ 2.9.0** (`deno desktop` was introduced in 2.9). Check with `deno --version`.
+The CEF backend is Chromium, and Deno serves the app from `localhost` (a secure context), so OpenHWP uses the standard [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker) directly. As a result, the Deno side needs no native file picker (Deno desktop does not ship one yet).
 
-### Planned commands
+```js
+// Open — restrict the picker to .hwp / .hwpx.
+const [handle] = await window.showOpenFilePicker({
+  types: [{ accept: { "application/octet-stream": [".hwp", ".hwpx"] } }],
+});
+const file = await handle.getFile();
+const bytes = new Uint8Array(await file.arrayBuffer());
+
+// Save — reuse the handle from Open to write back without prompting again.
+const writable = await handle.createWritable();
+await writable.write(bytes);
+await writable.close();
+```
+
+## Quick start
+
+> The application code (`deno.json`'s `desktop` block, `main.ts`, and the UI) does not exist yet. The flow below is the intended shape and fills in as the app is built.
+
+You need [Deno](https://deno.com) 2.9.0 or later (`deno desktop` arrived in 2.9). Check with `deno --version`.
 
 ```sh
-# Run in development (webview follows Deno.serve())
+# Run in development
 deno task dev
 
-# Build a standalone desktop binary with the Chromium (CEF) backend
+# Build a standalone binary with the Chromium (CEF) backend
 deno desktop main.ts --backend cef
 
-# Produce platform installers (.dmg / .msi / .deb) — configured via deno.json `desktop.output`
+# Produce platform installers (.dmg / .msi / .deb) — configured via deno.json's desktop.output
 deno desktop main.ts
 ```
 
 ## Roadmap
 
-1. **Viewer** — open an `.hwp` / `.hwpx` file via the File System Access API and render pages to SVG
-   with `@rhwp/core`.
-2. **Editor** — embed `@rhwp/editor`; wire **Save** / **Save As** back to disk through
-   `FileSystemFileHandle`, plus native menus and multi-window support.
-3. **Export & print** — PDF export (via `rhwp`) and the webview print path.
-4. **Packaging** — signed/notarized `.dmg`, `.msi`, and `.deb` / `.AppImage` / `.rpm` builds in CI.
+1. **Viewer** — open `.hwp` / `.hwpx` with the File System Access API and render pages to SVG with `@rhwp/core`.
+2. **Editor** — embed `@rhwp/editor` and wire Save / Save As to disk through `FileSystemFileHandle`, with native menus and multiple windows.
+3. **Export & print** — PDF export (via rhwp) and the webview print path.
+4. **Packaging** — signed and notarized `.dmg`, `.msi`, and `.deb` / `.AppImage` / `.rpm` builds in CI.
+
+## Contributing
+
+File bugs and ideas in the [issue tracker](https://github.com/pleaseai/openhwp/issues). The project is early, so its structure changes often.
 
 ## Credits
 
-- Document engine: [**rhwp**](https://github.com/edwardkim/rhwp) by Edward Kim — the Rust/WASM HWP
-  engine that makes this possible.
+- Document engine: [rhwp](https://github.com/edwardkim/rhwp) by Edward Kim — the Rust/WASM HWP engine that makes this possible.
 
 ## License
 
