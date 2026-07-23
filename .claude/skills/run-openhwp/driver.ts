@@ -15,9 +15,9 @@
 //   2. open it in headless Chrome and screenshot the UI shell,
 //   3. attempt the rhwp render path (load @rhwp/core, render a page to SVG) and
 //      screenshot it — this also verifies the esm.sh/WASM assumption.
-// Exit code is 0 only if the shell smoke check passes AND — when the engine
-// actually loaded — rendering succeeded. A load failure (CDN/network) is
-// non-fatal; a post-load render failure gates.
+// Exit code is 0 only if the shell smoke check passes AND the rhwp render path
+// succeeds (engine loads + a page renders to non-empty SVG). Any render-path
+// failure — a CDN/network load failure or a post-load render regression — gates.
 
 // The `page.evaluate()` callbacks below run in the browser, so this driver
 // references DOM globals (document, etc.) that deno.json's lib does not provide.
@@ -91,12 +91,10 @@ try {
     shellErrors.length === 0;
 
   // 3. Render path: load @rhwp/core (esm.sh via the page's import map) and render
-  // a page to SVG. Two failure modes are treated differently:
-  //   - the engine fails to LOAD (module import / WASM fetch) — non-fatal, since
-  //     the engine is fetched from esm.sh (see index.html's TODO to vendor it),
-  //     and a transient CDN/network outage should not red CI; whereas
-  //   - the engine loads but rendering throws or returns empty — a real
-  //     regression, which fails the run.
+  // a page to SVG, then gate on it — if the engine cannot load or cannot render,
+  // the app cannot display documents, so the run fails. (The engine is currently
+  // CDN-loaded, so a transient esm.sh outage can red CI until it is vendored
+  // locally — see index.html's TODO; re-running recovers a transient blip.)
   try {
     const render = await page.evaluate(async () => {
       let loaded = false;
@@ -127,13 +125,14 @@ try {
     if (render.ok) {
       await Deno.writeFile(shotPath("render.png"), await page.screenshot());
       console.log(`[driver] wrote ${shotPath("render.png")}`);
-    } else if (render.loaded) {
-      // Engine loaded but could not render — a real regression, so gate on it.
-      console.log(`[driver] render regression (gating):`, render.why);
-      ok = false;
     } else {
-      // Engine never loaded — likely a CDN/network outage; non-fatal.
-      console.log(`[driver] engine did not load (non-fatal, likely CDN/network):`, render.why);
+      // The engine failed to load or to render — either way the app cannot
+      // display documents, so fail the run. `loaded` distinguishes a CDN/network
+      // load failure from a post-load render regression for diagnostics only;
+      // both gate. (Once @rhwp is vendored locally a load failure can only be a
+      // real regression — see index.html's vendoring TODO.)
+      console.log(`[driver] render failed (gating) [loaded=${render.loaded}]:`, render.why);
+      ok = false;
     }
   } catch (err) {
     console.log(`[driver] render attempt errored (non-fatal):`, String((err as Error)?.message ?? err));
