@@ -74,26 +74,31 @@ try {
   ok = shell.hasOpen && shell.placeholder.length > 0;
 
   // 3. Best-effort render path: load @rhwp/core (esm.sh via the page's import
-  // map) and render a page to SVG. Verifies the WASM-over-CDN assumption.
-  const render = await page.evaluate(async () => {
-    try {
-      // @ts-ignore browser import map resolves this to esm.sh
-      const mod = await import("@rhwp/core");
-      await mod.default(); // init WASM
-      const make = mod.HwpDocument.createBlankDocument ?? mod.HwpDocument.createEmpty;
-      if (typeof make !== "function") return { ok: false, why: "no createBlank/Empty" };
-      const doc = make.call(mod.HwpDocument);
-      const svg = doc.renderPageSvg(0);
-      document.getElementById("viewer")!.innerHTML = svg;
-      return { ok: true, svgLen: svg.length, pages: doc.pageCount?.() ?? null };
-    } catch (err) {
-      return { ok: false, why: String((err as Error)?.message ?? err) };
+  // map) and render a page to SVG. Verifies the WASM-over-CDN assumption. Wrapped
+  // so a network/engine failure never fails the run — the shell smoke is the gate.
+  try {
+    const render = await page.evaluate(async () => {
+      try {
+        // @ts-ignore browser import map resolves this to esm.sh
+        const mod = await import("@rhwp/core");
+        await mod.default(); // init WASM
+        const make = mod.HwpDocument.createBlankDocument ?? mod.HwpDocument.createEmpty;
+        if (typeof make !== "function") return { ok: false, why: "no createBlank/Empty" };
+        const doc = make.call(mod.HwpDocument);
+        const svg = doc.renderPageSvg(0);
+        document.getElementById("viewer")!.innerHTML = svg;
+        return { ok: true, svgLen: svg.length, pages: doc.pageCount?.() ?? null };
+      } catch (err) {
+        return { ok: false, why: String((err as Error)?.message ?? err) };
+      }
+    });
+    console.log(`[driver] render:`, JSON.stringify(render));
+    if (render.ok) {
+      await Deno.writeFile(shotPath("render.png"), await page.screenshot());
+      console.log(`[driver] wrote ${shotPath("render.png")}`);
     }
-  });
-  console.log(`[driver] render:`, JSON.stringify(render));
-  if (render.ok) {
-    await Deno.writeFile(shotPath("render.png"), await page.screenshot());
-    console.log(`[driver] wrote ${shotPath("render.png")}`);
+  } catch (err) {
+    console.log(`[driver] render attempt errored (non-fatal):`, String((err as Error)?.message ?? err));
   }
 
   if (consoleErrors.length) console.log(`[driver] console errors:`, consoleErrors);
