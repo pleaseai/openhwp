@@ -1,0 +1,26 @@
+src/ui/index.html
+  s_3cabe978142e5e::t_f5cecfa5622ce6 12-14,19-20
+main.ts
+  s_3cabe978142e5e::t_b3650c48269d9c 20-28
+src/ui/styles.css
+  s_3cabe978142e5e::t_224f15a380128d 36-39
+.claude/skills/run-openhwp/driver.ts
+  s_3cabe978142e5e::t_684cf1150673c5 20-24
+  s_3cabe978142e5e::t_3a2054277b782b 70-73,78-79,84-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "72c9d2dabdeaa9434290b664979adcc214b891cb",
+  "prompts": {},
+  "sessions": {
+    "s_3cabe978142e5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b5fb53a-0a69-4beb-87bf-0bb660708e3b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
