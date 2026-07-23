@@ -11,7 +11,7 @@
     "check": "deno check main.ts",
     "fmt": "deno fmt",
     "lint": "deno lint",
-    "test": "deno test --allow-read"
+    "test": "deno test --allow-read --permit-no-files"
   },
   "imports": {
     "@std/http": "jsr:@std/http@^1"

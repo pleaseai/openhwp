@@ -97,9 +97,19 @@ win.addEventListener("menuclick", (event) => {
     // invoked there). Forward them; the UI exposes `globalThis.openhwp.onMenu`.
     case "open":
     case "save":
-    case "save-as":
-      void win.executeJs(`globalThis.openhwp?.onMenu(${JSON.stringify(event.detail.id)})`);
+    case "save-as": {
+      // Fail loudly if the UI bridge isn't ready instead of silently dropping
+      // the click, and observe the rejection so an absent/broken bridge is
+      // diagnosable rather than a no-op.
+      const id = event.detail.id;
+      win.executeJs(
+        `if (typeof globalThis.openhwp?.onMenu !== "function") {
+           throw new Error("OpenHWP UI menu bridge is unavailable");
+         }
+         globalThis.openhwp.onMenu(${JSON.stringify(id)});`,
+      ).catch((err) => console.error(`[host] menu action "${id}" failed:`, err));
       break;
+    }
   }
 });
 

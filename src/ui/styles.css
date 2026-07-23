@@ -63,5 +63,7 @@ body {
 
 .placeholder {
   margin: auto;
-  opacity: 0.5;
+  /* Opaque adaptive color that meets AA in both schemes — `opacity: 0.5` on
+     CanvasText composited to ~3.95:1, below the 4.5:1 minimum for body text. */
+  color: color-mix(in srgb, CanvasText 60%, Canvas);
 }

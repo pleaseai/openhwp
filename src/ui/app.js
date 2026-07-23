@@ -12,6 +12,8 @@ const viewer = document.getElementById("viewer");
 const statusEl = document.getElementById("status");
 const pager = document.querySelector(".pager");
 const pageIndicator = document.getElementById("page-indicator");
+const prevBtn = document.getElementById("prev");
+const nextBtn = document.getElementById("next");
 
 const state = {
   doc: null,
@@ -80,9 +82,17 @@ async function openFile() {
 function renderPage() {
   const { doc, page, pageCount } = state;
   if (!doc) return;
+  // SECURITY: renderPageSvg() returns SVG built from an untrusted document, so
+  // this trusts the rhwp engine to escape document-derived content. TODO(Phase 2):
+  // sanitize before injection (or confirm rhwp's output is safe). The CSP in
+  // index.html is the defense-in-depth backstop.
   viewer.innerHTML = doc.renderPageSvg(page);
   pager.hidden = pageCount <= 1;
-  pageIndicator.textContent = `${page + 1} / ${pageCount}`;
+  prevBtn.disabled = page <= 0;
+  nextBtn.disabled = page >= pageCount - 1;
+  // #page-indicator is an aria-live region (index.html) — give it explicit
+  // context so screen readers announce the page change.
+  pageIndicator.textContent = `Page ${page + 1} of ${pageCount}`;
 }
 
 function turnPage(delta) {
@@ -96,8 +106,8 @@ function turnPage(delta) {
 const reportError = (err) => setStatus(`Error: ${err?.message ?? err}`);
 
 document.getElementById("open").addEventListener("click", () => openFile().catch(reportError));
-document.getElementById("prev").addEventListener("click", () => turnPage(-1));
-document.getElementById("next").addEventListener("click", () => turnPage(1));
+prevBtn.addEventListener("click", () => turnPage(-1));
+nextBtn.addEventListener("click", () => turnPage(1));
 
 // Bridge for the native application menu (main.ts forwards clicks here).
 globalThis.openhwp = {
@@ -115,7 +125,14 @@ globalThis.openhwp = {
   },
 };
 
-// Show runtime info from the host binding, when available.
-globalThis.bindings?.hostInfo?.()
-  .then((info) => setStatus(`OpenHWP · Deno ${info.denoVersion} · ${info.platform}`))
-  .catch(() => {});
+// Show runtime info from the host binding, when available. The optional chain
+// tolerates environments with no host bridge (e.g. the headless driver); once
+// the binding exists, a rejection is a real failure, so log it instead of
+// swallowing. NOTE: on Deno 2.9.3 this binding can reject due to an upstream
+// desktop bug (denoland/deno#36033, fixed by #36065 — not yet in a stable
+// release); the status line then just omits the runtime info, which is non-fatal.
+if (globalThis.bindings?.hostInfo) {
+  globalThis.bindings.hostInfo()
+    .then((info) => setStatus(`OpenHWP · Deno ${info.denoVersion} · ${info.platform}`))
+    .catch((err) => console.warn("hostInfo binding failed:", err));
+}

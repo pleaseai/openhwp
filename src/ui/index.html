@@ -2,6 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      Defense-in-depth CSP. `'unsafe-inline'` + `'wasm-unsafe-eval'` in script-src
+      are required by the inline import map and the rhwp WASM engine; esm.sh is the
+      pinned CDN. connect-src/img-src are tightened to limit exfiltration should a
+      malicious document ever inject active SVG content. TODO: once @rhwp is
+      vendored locally, drop esm.sh + `'unsafe-inline'` and tighten to `'self'`.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' https://esm.sh 'unsafe-inline' 'wasm-unsafe-eval'; connect-src 'self' https://esm.sh; img-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OpenHWP</title>
     <link rel="stylesheet" href="./styles.css" />
@@ -27,7 +38,8 @@
       <button id="open" type="button">Open .hwp / .hwpx</button>
       <div class="pager" hidden>
         <button id="prev" type="button" aria-label="Previous page">‹</button>
-        <span id="page-indicator">– / –</span>
+        <span id="page-indicator" role="status" aria-live="polite"
+          aria-atomic="true">Page – of –</span>
         <button id="next" type="button" aria-label="Next page">›</button>
       </div>
       <span id="status" class="status" role="status"></span>
