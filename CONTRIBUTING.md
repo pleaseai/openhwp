@@ -37,6 +37,10 @@ deno test           # run the test suite
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): subject`, where `type` is one of `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, etc. Breaking changes include a `BREAKING CHANGE:` footer. Versioning and the changelog are generated automatically from these messages, so accurate types matter.
 
+## Versioning
+
+OpenHWP is pre-1.0. While the major version is `0`, behavior and APIs may change between releases. [release-please](https://github.com/googleapis/release-please) derives the next version from Conventional Commits: a `feat` bumps the minor, a `fix` bumps the patch, and — because the project is still `0.x` — a breaking change bumps the minor rather than the major. We cut `1.0.0` intentionally, not automatically.
+
 ## Pull requests
 
 External contributions start with an issue or a discussion, not a PR. If a
