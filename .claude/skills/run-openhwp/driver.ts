@@ -49,10 +49,10 @@ const SHOT_DIR = new URL("./screenshots/", import.meta.url);
 await Deno.mkdir(SHOT_DIR, { recursive: true });
 const shotPath = (name: string) => decodeURIComponent(new URL(name, SHOT_DIR).pathname);
 
-// Serve the built studio (same bundle main.ts serves).
+// Serve the built studio (same bundle main.ts serves). Loopback only.
 let port = 0;
 const server = Deno.serve(
-  { port: 0, onListen: (addr) => (port = addr.port) },
+  { hostname: "127.0.0.1", port: 0, onListen: (addr) => (port = addr.port) },
   (req) => serveDir(req, { fsRoot: DIST, quiet: true }),
 );
 const base = `http://127.0.0.1:${port}`;
@@ -104,8 +104,10 @@ try {
 
   ok = readyState.ready && pageErrors.length === 0;
 } finally {
-  await browser.close();
-  await server.shutdown();
+  // Settle both cleanups independently — a browser.close() rejection must not
+  // mask the smoke failure or skip server.shutdown() (which would leak the port).
+  await browser.close().catch((e) => console.error(`[driver] browser.close: ${e}`));
+  await server.shutdown().catch((e) => console.error(`[driver] server.shutdown: ${e}`));
 }
 
 console.log(

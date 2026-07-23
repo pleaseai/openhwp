@@ -4,9 +4,9 @@
 
 **OpenHWP는 [Deno desktop](https://docs.deno.com/runtime/desktop/)과 [rhwp](https://github.com/edwardkim/rhwp)로 만드는 오픈소스 HWP/HWPX 데스크톱 앱입니다.**
 
-한컴오피스 없이 macOS, Windows, Linux에서 한글 HWP·HWPX 문서를 열고 봅니다. 편집은 로드맵에 있습니다. 문서 파싱과 렌더링은 [rhwp](https://github.com/edwardkim/rhwp)(Rust + WebAssembly) 엔진이 맡고, OpenHWP는 그 위에 데스크톱 껍데기를 얇게 씌웁니다.
+한컴오피스 없이 macOS, Windows, Linux에서 한글 HWP·HWPX 문서를 열고, 편집하고, 저장합니다. 문서 작업은 전체 [rhwp-studio](https://github.com/edwardkim/rhwp)(Rust + WebAssembly) 편집기가 맡고, OpenHWP는 그 위에 데스크톱 껍데기를 얇게 씌웁니다.
 
-> **상태: 초기 개발 단계입니다.** 지금 저장소에는 프로젝트 뼈대와 문서만 있고, 애플리케이션 코드는 아직 없습니다. 기반 엔진과 Deno desktop 런타임이 모두 초기라 호환성이 깨지는 변경이 잦을 수 있습니다.
+> **상태: 초기 개발 단계입니다.** OpenHWP는 전체 rhwp-studio 편집기를 임베드하는 얇은 네이티브 셸입니다(아래 빠른 시작 참고). 기반 엔진과 Deno desktop 런타임이 모두 초기라 호환성이 깨지는 변경이 잦을 수 있습니다.
 
 ## 동작 방식
 
@@ -58,19 +58,22 @@ await writable.close();
 
 ## 빠른 시작
 
-> 애플리케이션 코드(`deno.json`의 `desktop` 블록, `main.ts`, UI)는 아직 없습니다. 아래는 앞으로 만들 흐름이며, 구현이 진행되면 채워집니다.
+[Deno](https://deno.com) 2.9.0 이상(`deno desktop`은 2.9에서 들어왔습니다)과, 스튜디오 번들을 빌드할 때 필요한 Node.js·npm이 있어야 합니다. 버전은 `deno --version`으로 확인합니다.
 
-[Deno](https://deno.com) 2.9.0 이상이 필요합니다(`deno desktop`은 2.9에서 들어왔습니다). 버전은 `deno --version`으로 확인합니다.
+OpenHWP는 전체 [rhwp-studio](https://github.com/edwardkim/rhwp) 편집기를 임베드하며, 그 번들(`apps/studio-host/dist`)은 저장소에 커밋하지 않으므로 먼저 빌드해야 합니다.
 
 ```sh
-# 개발 모드로 실행
+# 1. 고정된 업스트림 rhwp 체크아웃(third_party/rhwp) 준비 — 최초 1회
+deno task setup
+
+# 2. 스튜디오 번들 빌드 → apps/studio-host/dist
+deno task build:studio
+
+# 3. 개발 모드로 실행 (apps/desktop 셸이 번들을 띄웁니다)
 deno task dev
 
-# Chromium(CEF) 백엔드로 실행 바이너리 빌드
-deno desktop main.ts --backend cef
-
-# 플랫폼 설치 파일(.dmg / .msi / .deb) 생성 — deno.json의 desktop.output으로 설정
-deno desktop main.ts
+# 실행 바이너리·설치 파일(.dmg / .msi / .AppImage) 빌드 — apps/desktop/deno.json의 desktop.output으로 설정
+deno task build
 ```
 
 ## 로드맵

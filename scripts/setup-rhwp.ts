@@ -7,20 +7,58 @@
 // cone-sparse checkout of only the paths the studio build needs (rhwp-studio +
 // assets) — ~80 MB including the partial .git. Re-run after changing the pin.
 //
-//   deno run -A scripts/setup-rhwp.ts
+// It is a disposable materialized checkout: build-studio.ts mutates it in place
+// (copies pkg/, drops public/samples, npm rewrites the lock), so setup force-
+// checks-out the pin on every run to discard that drift and reconcile the sparse
+// paths — a plain checkout would refuse to re-pin over the dirty worktree.
+//
+//   deno run --allow-read --allow-run scripts/setup-rhwp.ts
 
-const ROOT = new URL("../", import.meta.url).pathname;
+const ROOT = `${import.meta.dirname}/../`;
 const DEST = `${ROOT}third_party/rhwp`;
 
-const manifest = JSON.parse(
-  await Deno.readTextFile(`${ROOT}config/rhwp-studio-overrides.json`),
-);
-const { repo, tag, commit, sparsePaths } = manifest.upstream as {
+interface Upstream {
   repo: string;
   tag: string;
   commit: string;
   sparsePaths: string[];
-};
+}
+
+// The manifest is committed and PR-reviewed, but a hand-edit that drops a field
+// or leaves an empty commit would otherwise flow `undefined`/`""` straight into
+// git args (checking out the wrong thing, or an empty sparse set). Validate up
+// front so a bad manifest fails with a clear message instead of a git error.
+function parseManifest(raw: string): Upstream {
+  const manifest = JSON.parse(raw) as { upstream?: Partial<Upstream> };
+  const u = manifest.upstream ?? {};
+  const str = (k: "repo" | "tag" | "commit"): string => {
+    const v = u[k];
+    if (typeof v !== "string" || v.length === 0) {
+      throw new Error(`manifest upstream.${k} must be a non-empty string`);
+    }
+    return v;
+  };
+  const repo = str("repo");
+  const tag = str("tag");
+  const commit = str("commit");
+  if (!/^[0-9a-f]{40}$/.test(commit)) {
+    throw new Error(
+      `manifest upstream.commit must be a full 40-char SHA, got "${commit}"`,
+    );
+  }
+  const { sparsePaths } = u;
+  if (
+    !Array.isArray(sparsePaths) || sparsePaths.length === 0 ||
+    !sparsePaths.every((p) => typeof p === "string" && p.length > 0)
+  ) {
+    throw new Error("manifest upstream.sparsePaths must be a non-empty string[]");
+  }
+  return { repo, tag, commit, sparsePaths };
+}
+
+const { repo, tag, commit, sparsePaths } = parseManifest(
+  await Deno.readTextFile(`${ROOT}config/rhwp-studio-overrides.json`),
+);
 
 async function git(args: string[], cwd = ROOT): Promise<string> {
   const cmd = new Deno.Command("git", {
@@ -43,16 +81,13 @@ async function exists(path: string): Promise<boolean> {
 }
 
 if (await exists(`${DEST}/.git`)) {
-  const head = await git(["rev-parse", "HEAD"], DEST);
-  if (head === commit) {
-    console.log(`[setup-rhwp] up to date at ${commit} — nothing to do`);
-    Deno.exit(0);
-  }
-  console.log(
-    `[setup-rhwp] third_party/rhwp at ${head}, re-pinning to ${commit}`,
-  );
+  // Force the pinned commit (discarding any in-place build mutations — --force
+  // only touches tracked files, so node_modules/pkg survive), then reconcile the
+  // sparse paths against the manifest. Idempotent: a clean checkout already at
+  // the pin is a no-op.
+  console.log(`[setup-rhwp] ensuring third_party/rhwp @ ${commit}`);
+  await git(["checkout", "--force", "--detach", commit], DEST);
   await git(["sparse-checkout", "set", ...sparsePaths], DEST);
-  await git(["checkout", "--detach", commit], DEST);
 } else {
   console.log(`[setup-rhwp] sparse partial clone ${repo} @ ${tag} (${commit})`);
   await git([

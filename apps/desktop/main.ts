@@ -24,7 +24,24 @@ import { fromFileUrl } from "@std/path";
 // this module so the server works regardless of the current working directory.
 const UI_ROOT = fromFileUrl(new URL("../studio-host/dist", import.meta.url));
 
-const server = Deno.serve((req) => serveDir(req, { fsRoot: UI_ROOT, quiet: true }));
+// Preflight: the studio bundle is gitignored and built separately, so a fresh
+// checkout has none. Fail with the build command rather than opening a window
+// onto blank 404s — serveDir runs quiet, so the misconfig would be invisible.
+try {
+  await Deno.stat(`${UI_ROOT}/index.html`);
+} catch {
+  console.error(`OpenHWP: studio bundle not found at ${UI_ROOT}`);
+  console.error("Build it first: deno task setup && deno task build:studio");
+  Deno.exit(1);
+}
+
+// Bind to loopback with an ephemeral port (Deno.serve otherwise defaults to
+// 0.0.0.0:8000) — this is a local desktop app; the bundle must not be reachable
+// from other hosts, and a fixed well-known port invites collisions.
+const server = Deno.serve(
+  { hostname: "127.0.0.1", port: 0 },
+  (req) => serveDir(req, { fsRoot: UI_ROOT, quiet: true }),
+);
 if (server.addr.transport !== "tcp") {
   throw new Error(
     `OpenHWP UI server expected a TCP address, got ${server.addr.transport}`,
