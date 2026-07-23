@@ -15,7 +15,9 @@
 //   2. open it in headless Chrome and screenshot the UI shell,
 //   3. attempt the rhwp render path (load @rhwp/core, render a page to SVG) and
 //      screenshot it — this also verifies the esm.sh/WASM assumption.
-// Exit code is 0 only if the shell smoke check passes.
+// Exit code is 0 only if the shell smoke check passes AND — when the engine
+// actually loaded — rendering succeeded. A load failure (CDN/network) is
+// non-fatal; a post-load render failure gates.
 
 // The `page.evaluate()` callbacks below run in the browser, so this driver
 // references DOM globals (document, etc.) that deno.json's lib does not provide.
@@ -88,29 +90,50 @@ try {
   ok = shell.hasOpen && shell.placeholder.length > 0 && shell.appReady &&
     shellErrors.length === 0;
 
-  // 3. Best-effort render path: load @rhwp/core (esm.sh via the page's import
-  // map) and render a page to SVG. Verifies the WASM-over-CDN assumption. Wrapped
-  // so a network/engine failure never fails the run — the shell smoke is the gate.
+  // 3. Render path: load @rhwp/core (esm.sh via the page's import map) and render
+  // a page to SVG. Two failure modes are treated differently:
+  //   - the engine fails to LOAD (module import / WASM fetch) — non-fatal, since
+  //     the engine is fetched from esm.sh (see index.html's TODO to vendor it),
+  //     and a transient CDN/network outage should not red CI; whereas
+  //   - the engine loads but rendering throws or returns empty — a real
+  //     regression, which fails the run.
   try {
     const render = await page.evaluate(async () => {
+      let loaded = false;
       try {
         // @ts-ignore browser import map resolves this to esm.sh
         const mod = await import("@rhwp/core");
-        await mod.default(); // init WASM
+        await mod.default(); // init WASM (fetches rhwp_bg.wasm over the network)
+        loaded = true;
         const make = mod.HwpDocument.createBlankDocument ?? mod.HwpDocument.createEmpty;
-        if (typeof make !== "function") return { ok: false, why: "no createBlank/Empty" };
+        if (typeof make !== "function") {
+          return { loaded, ok: false, why: "no createBlank/Empty", svgLen: 0, pages: null };
+        }
         const doc = make.call(mod.HwpDocument);
         const svg = doc.renderPageSvg(0);
         document.getElementById("viewer")!.innerHTML = svg;
-        return { ok: true, svgLen: svg.length, pages: doc.pageCount?.() ?? null };
+        return {
+          loaded,
+          ok: svg.length > 0,
+          why: "",
+          svgLen: svg.length,
+          pages: doc.pageCount?.() ?? null,
+        };
       } catch (err) {
-        return { ok: false, why: String((err as Error)?.message ?? err) };
+        return { loaded, ok: false, why: String((err as Error)?.message ?? err), svgLen: 0, pages: null };
       }
     });
     console.log(`[driver] render:`, JSON.stringify(render));
     if (render.ok) {
       await Deno.writeFile(shotPath("render.png"), await page.screenshot());
       console.log(`[driver] wrote ${shotPath("render.png")}`);
+    } else if (render.loaded) {
+      // Engine loaded but could not render — a real regression, so gate on it.
+      console.log(`[driver] render regression (gating):`, render.why);
+      ok = false;
+    } else {
+      // Engine never loaded — likely a CDN/network outage; non-fatal.
+      console.log(`[driver] engine did not load (non-fatal, likely CDN/network):`, render.why);
     }
   } catch (err) {
     console.log(`[driver] render attempt errored (non-fatal):`, String((err as Error)?.message ?? err));
