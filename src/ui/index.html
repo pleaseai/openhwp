@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenHWP</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <!--
+      The rhwp document engine (@rhwp/core) is an npm ESM package with a WASM
+      payload. Until it is vendored/bundled for offline use it is loaded from a
+      CDN via this import map; the CEF (Chromium) backend supports import maps.
+      TODO: vendor @rhwp/core + rhwp_bg.wasm locally so the app works offline.
+    -->
+    <script type="importmap">
+    {
+      "imports": {
+        "@rhwp/core": "https://esm.sh/@rhwp/core",
+        "@rhwp/editor": "https://esm.sh/@rhwp/editor"
+      }
+    }
+    </script>
+  </head>
+  <body>
+    <header class="toolbar">
+      <button id="open" type="button">Open .hwp / .hwpx</button>
+      <div class="pager" hidden>
+        <button id="prev" type="button" aria-label="Previous page">‹</button>
+        <span id="page-indicator">– / –</span>
+        <button id="next" type="button" aria-label="Next page">›</button>
+      </div>
+      <span id="status" class="status" role="status"></span>
+    </header>
+    <main id="viewer" class="viewer">
+      <p class="placeholder">Open a Hancom document to view it.</p>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
