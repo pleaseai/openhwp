@@ -1,0 +1,40 @@
+apps/desktop/main.ts
+  s_3cabe978142e5e::t_42f0eee8994513 27-44
+scripts/build-studio.ts
+  s_3cabe978142e5e::t_a9c25d4acc2cc1 101,104-105,107-114,117
+  s_3cabe978142e5e::t_6c0fcdba32051b 31-40
+  s_3cabe978142e5e::t_9300eee449d729 78-83
+  s_3cabe978142e5e::t_0c9bf96eae6107 14
+README.md
+  s_3cabe978142e5e::t_28a68b9874ac8c 7,9
+  s_3cabe978142e5e::t_0a29562c42ceac 61,63,66-70,72-73,75-76
+CONTRIBUTING.md
+  s_3cabe978142e5e::t_41056cb7e11fb5 29,34-36
+  s_3cabe978142e5e::t_20ae936d8ebf7c 12-13,16-17
+README.en.md
+  s_3cabe978142e5e::t_634d2c7a3a9894 7,9
+  s_3cabe978142e5e::t_a0c4c071031ef6 61,63,66-70,72-73,75-76
+.claude/skills/run-openhwp/driver.ts
+  s_3cabe978142e5e::t_a36facb069ec65 107-110
+  s_3cabe978142e5e::t_f886e34734c64f 52,55
+.github/workflows/ci.yml
+  s_3cabe978142e5e::t_fc4ff276918249 19,24-27,34-36,41-44
+scripts/setup-rhwp.ts
+  s_3cabe978142e5e::t_ec718a41d7c59d 10-15,17,20,25-61,84-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "4a3aabc0fe308a7f996844e0d85025d899cec5ec",
+  "prompts": {},
+  "sessions": {
+    "s_3cabe978142e5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b5fb53a-0a69-4beb-87bf-0bb660708e3b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
