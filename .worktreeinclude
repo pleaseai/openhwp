@@ -1,0 +1,14 @@
+# .worktreeinclude — gitignored files to copy into a new worktree.
+# .gitignore syntax; only files that match AND are git-ignored get copied.
+# Claude Code --worktree handles this automatically; orca runs
+#   bunx @pleaseai/worktreeinclude <source> <target> in orca.yaml's setup hook.
+# Details: Skill("standards:dev-tooling") → references/worktree-setup.md
+
+# Root env files
+.env
+.env.local
+.env.*.local
+
+# Claude Code local settings — the shared-config file (gitignored via
+# .git/info/exclude), so it qualifies for copying into the worktree.
+.claude/settings.local.json

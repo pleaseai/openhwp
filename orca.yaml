@@ -1,0 +1,16 @@
+# orca.yaml — setup script run when Orca (or another worktree tool) creates a
+# worktree for this repo. Committed and team-shared.
+# Details: Skill("standards:dev-tooling") → references/worktree-setup.md
+#
+# Environment variables:
+#   $ORCA_ROOT_PATH     — main checkout (copy source)
+#   $ORCA_WORKTREE_PATH — new worktree (copy target)
+
+# This repo uses a single Deno toolchain (no mise). Setup: copy local/gitignored
+# files listed in .worktreeinclude (.env*, .claude/settings.local.json) → cache
+# dependencies declared in deno.json once app code lands.
+scripts:
+  setup: |
+    set -e
+    bunx @pleaseai/worktreeinclude "$ORCA_ROOT_PATH" "$ORCA_WORKTREE_PATH"
+    [ -f deno.json ] && deno install || true

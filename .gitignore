@@ -1,0 +1,29 @@
+# Deno
+vendor/
+node_modules/
+
+# Build output — deno desktop binaries and installers
+build/
+dist/
+*.app/
+*.dmg
+*.msi
+*.deb
+*.rpm
+*.AppImage
+*.exe
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Claude Code local settings (merged shared config; copied into worktrees)
+.claude/settings.local.json
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
