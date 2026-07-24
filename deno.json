@@ -1,5 +1,7 @@
 {
-  "workspace": ["./apps/desktop"],
+  "workspace": [
+    "./apps/desktop"
+  ],
   "tasks": {
     "setup": "deno run --allow-read --allow-run scripts/setup-rhwp.ts",
     "build:studio": "deno run --allow-read --allow-write --allow-run --allow-env scripts/build-studio.ts",
@@ -9,11 +11,26 @@
   },
   "fmt": {
     "lineWidth": 100,
-    "include": ["apps/", "scripts/", "config/", ".claude/skills/run-openhwp/driver.ts"],
-    "exclude": ["apps/studio-host/dist/", "apps/studio-host/vendor/"]
+    "include": [
+      "apps/",
+      "scripts/",
+      "config/",
+      ".claude/skills/run-openhwp/driver.ts"
+    ],
+    "exclude": [
+      "apps/studio-host/dist/",
+      "apps/studio-host/vendor/"
+    ]
   },
   "lint": {
-    "include": ["apps/", "scripts/", ".claude/skills/run-openhwp/driver.ts"],
-    "exclude": ["apps/studio-host/dist/", "apps/studio-host/vendor/"]
+    "include": [
+      "apps/",
+      "scripts/",
+      ".claude/skills/run-openhwp/driver.ts"
+    ],
+    "exclude": [
+      "apps/studio-host/dist/",
+      "apps/studio-host/vendor/"
+    ]
   }
 }
