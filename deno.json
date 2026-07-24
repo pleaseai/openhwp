@@ -1,40 +1,19 @@
 {
-  "name": "openhwp",
-  "version": "0.0.0",
-  "exports": "./main.ts",
-  "compilerOptions": {
-    "lib": ["deno.window", "deno.desktop"]
-  },
+  "workspace": ["./apps/desktop"],
   "tasks": {
-    "dev": "deno desktop --hmr --allow-net --allow-read --allow-env main.ts",
-    "build": "deno desktop --allow-net --allow-read --allow-env --include ./src/ui main.ts",
-    "check": "deno check main.ts",
-    "fmt": "deno fmt",
-    "lint": "deno lint",
-    "test": "deno test --allow-read --permit-no-files"
-  },
-  "imports": {
-    "@std/http": "jsr:@std/http@^1"
+    "setup": "deno run --allow-read --allow-run scripts/setup-rhwp.ts",
+    "build:studio": "deno run --allow-read --allow-write --allow-run --allow-env scripts/build-studio.ts",
+    "dev": "cd apps/desktop && deno task dev",
+    "build": "cd apps/desktop && deno task build",
+    "check": "cd apps/desktop && deno task check"
   },
   "fmt": {
     "lineWidth": 100,
-    "include": ["main.ts", "src/"],
-    "exclude": ["dist/", "build/", "vendor/", "src/ui/vendor/"]
+    "include": ["apps/", "scripts/", "config/", ".claude/skills/run-openhwp/driver.ts"],
+    "exclude": ["apps/studio-host/dist/", "apps/studio-host/vendor/"]
   },
   "lint": {
-    "include": ["main.ts", "src/"],
-    "exclude": ["dist/", "build/", "vendor/", "src/ui/vendor/"]
-  },
-  "desktop": {
-    "app": {
-      "name": "OpenHWP",
-      "identifier": "dev.pleaseai.openhwp"
-    },
-    "backend": "cef",
-    "output": {
-      "macos": "dist/OpenHWP.dmg",
-      "windows": "dist/OpenHWP.msi",
-      "linux": "dist/OpenHWP.AppImage"
-    }
+    "include": ["apps/", "scripts/", ".claude/skills/run-openhwp/driver.ts"],
+    "exclude": ["apps/studio-host/dist/", "apps/studio-host/vendor/"]
   }
 }

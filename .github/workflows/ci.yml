@@ -16,24 +16,32 @@ jobs:
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: v2.x
-      - run: deno check main.ts
+      - run: deno task check
       - run: deno lint
       - run: deno fmt --check
 
   smoke:
-    # Headless UI smoke via the run-openhwp driver: serve src/ui, drive it with
-    # Chrome, and assert the shell renders. (The rhwp render step is best-effort
-    # and does not gate — see the driver.)
+    # Headless UI smoke via the run-openhwp driver: build the embedded rhwp-studio
+    # editor bundle (apps/studio-host/dist), serve it, drive it with Chrome, and
+    # assert the editor boots. The bundle is gitignored, so it is materialized and
+    # built first (deno task setup → build:studio); the build needs Node for Vite.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: v2.x
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
       - uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd # v2.1.2
         id: chrome
         with:
           install-dependencies: true
+      - name: Materialize upstream rhwp (sparse, pinned)
+        run: deno task setup
+      - name: Build the studio bundle
+        run: deno task build:studio
       - name: run-openhwp smoke
         env:
           OPENHWP_CHROME: ${{ steps.chrome.outputs.chrome-path }}

@@ -1,79 +1,103 @@
 ---
 name: run-openhwp
-description: Build, launch, drive, and screenshot the OpenHWP Deno desktop app. Use to run OpenHWP, start the viewer, take a screenshot, smoke-test the webview UI, or verify the rhwp (HWP/HWPX → SVG) render pipeline.
+description: Build, launch, drive, and screenshot the OpenHWP Deno desktop app. Use to run OpenHWP, start the editor, take a screenshot, smoke-test the embedded rhwp-studio editor, or verify the HWP/HWPX edit/save pipeline boots.
 ---
 
 # Run OpenHWP
 
 OpenHWP is a Deno **desktop** app (`deno desktop`, CEF/Chromium backend) that is
-a thin host shell around the [rhwp](https://github.com/edwardkim/rhwp) WASM
-engine. `main.ts` (the host) serves the webview UI (`src/ui/`) over local HTTP
-and points a Chromium window at it; the document work (open, render to SVG) all
-happens in that webview.
+a thin native shell around the full
+[rhwp-studio](https://github.com/edwardkim/rhwp) editor (menus, toolbar, tables,
+formatting, undo, open/save). The shell lives in `apps/desktop`; it serves the
+studio's built bundle (`apps/studio-host/dist`) over local HTTP and points a
+Chromium window at it. All document work — open, edit, render, save — happens
+inside that webview via the studio's own UI.
 
 The desktop window needs a display; a headless container / SSH session has none.
 So the **primary way to run and observe this app is the driver**, which serves
-the same `src/ui/` and drives it with headless Chrome — no display, CEF, or
-WindowServer required. It reaches the exact UI + engine the desktop window shows.
+the same `apps/studio-host/dist` and drives it with headless Chrome — no
+display, CEF, or WindowServer required. It reaches the exact editor the desktop
+window shows.
 
 **All paths below are relative to the unit root** (the repo root — the directory
-with `deno.json` and `main.ts`). `cd` there first.
+with the workspace `deno.json`). `cd` there first.
 
 ## Prerequisites
 
 Verified on macOS (Darwin x86_64) this session:
 
-- **Deno ≥ 2.9** (`deno desktop` was introduced in 2.9). This session: `deno 2.9.3`.
+- **Deno ≥ 2.9** (`deno desktop` was introduced in 2.9). This session:
+  `deno 2.9.3`.
   ```bash
   deno --version
   ```
+- **Node.js + npm** — only to _build_ the studio bundle (Vite); the app itself
+  needs no Node at runtime. This session: `node v24.14.0`, `npm 11.9.0`.
+- **git** — `deno task setup` materializes the pinned upstream via a sparse
+  partial clone. This session: `git 2.49.0`.
 - **A Chromium-family browser** for the driver. This session used the installed
-  Google Chrome at `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
-  (the driver's default). Point elsewhere with `OPENHWP_CHROME=/path/to/chrome`
-  (e.g. a `chromium` binary on Linux). If the path is missing, [Astral](https://jsr.io/@astral/astral)
-  downloads its own Chromium.
-- Network access: the rhwp engine is vendored (`src/ui/vendor/rhwp`), so the app
-  runs offline; only the driver's own deps (Astral from `jsr:`) fetch on first run.
+  Google Chrome at
+  `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` (the driver's
+  default). Point elsewhere with `OPENHWP_CHROME=/path/to/chrome` (e.g. a
+  `chromium` binary on Linux). If the path is missing,
+  [Astral](https://jsr.io/@astral/astral) downloads its own Chromium.
+- Network access is needed **only at build time** (npm + the sparse clone). The
+  built app + the vendored wasm engine run fully offline.
 
-## Build / verify
+## Build
 
-No compile step is needed to run the driver, but this fetches deps, writes
-`deno.lock`, and type-checks the host (uses the official `deno.desktop` lib
-declared in `deno.json` → `compilerOptions.lib`):
+The studio bundle (`apps/studio-host/dist`) is **not committed** — build it
+once. From the unit root:
 
 ```bash
-deno check main.ts
-deno lint
-deno fmt --check
+deno task setup          # materialize third_party/rhwp (sparse, pinned) — once
+deno task build:studio   # build the studio → apps/studio-host/dist
 ```
 
-## Run — agent path (driver, headless, screenshots)
+- `deno task setup` (`scripts/setup-rhwp.ts`) sparse-partial-clones upstream
+  rhwp into `third_party/rhwp`, pinned to the commit in
+  `config/rhwp-studio-overrides.json` (~80 MB, not the full 1.1 GB monorepo). It
+  is idempotent: re-running verifies `HEAD` matches the pin and re-pins if not.
+- `deno task build:studio` (`scripts/build-studio.ts`) supplies `pkg/` from the
+  committed `apps/studio-host/vendor/rhwp-core` (so the Rust/wasm-pack step is
+  skipped), disables the PWA service worker, drops the bundled sample docs, runs
+  the upstream Vite build with `--base=/`, and restores the upstream tree.
+  Output is a ~48 MB self-contained `apps/studio-host/dist` (no `sw.js`).
 
-This is the path to use. From the unit root:
+Type-check the shell (uses the official `deno.desktop` lib declared in
+`apps/desktop/deno.json` → `compilerOptions.lib`):
+
+```bash
+deno task check
+```
+
+## Run — agent path (driver, headless, screenshot)
+
+This is the path to use. It needs `apps/studio-host/dist` (build it first). From
+the unit root:
 
 ```bash
 deno run -A --no-lock .claude/skills/run-openhwp/driver.ts
 ```
 
-It: (1) serves `src/ui/` on an ephemeral port, (2) opens it in headless Chrome,
-(3) screenshots the UI shell, and (4) loads `@rhwp/core` and renders a blank
-document page to SVG, screenshotting that too. Exit code is `0` only when the
-shell smoke check passes. Expected output:
+It: (1) serves `apps/studio-host/dist` on an ephemeral port (the same bundle
+`apps/desktop/main.ts` serves), (2) opens it in headless Chrome, (3) gates on
+the editor **booting** — the static shell (`#menu-bar`, `#scroll-container`)
+plus the document engine leaving its loading states (`#sb-message` reaches the
+ready prompt, not an init-failure message), and (4) screenshots. Exit code is
+`0` only when the studio boots with no uncaught page errors. Expected output:
 
 ```
-[driver] serving src/ui at http://127.0.0.1:<port>
-[driver] shell: {"hasOpen":true,"placeholder":"Open a Hancom document to view it.","title":"OpenHWP"}
-[driver] wrote .../screenshots/shell.png
-[driver] render: {"ok":true,"svgLen":460,"pages":1}
-[driver] wrote .../screenshots/render.png
-[driver] PASS (shell smoke)
+[driver] serving studio at http://127.0.0.1:<port>
+[driver] studio: {"ready":true,"message":"HWP 파일을 선택해주세요."}
+[driver] wrote .../screenshots/studio.png
+[driver] PASS (studio boots)
 ```
 
-Screenshots land in `.claude/skills/run-openhwp/screenshots/`
-(`shell.png` = the toolbar + "Open a Hancom document to view it." placeholder;
-`render.png` = a blank page rendered by the rhwp engine). They are gitignored —
-regenerated every run. **Open the PNGs and look** — a blank/error image means a
-regression.
+`screenshots/studio.png` shows the full editor toolbar (cut/copy/paste,
+formatting, table, list, image…) over the empty editor canvas — the ready state
+before a document is opened. It is gitignored — regenerated every run. **Open
+the PNG and look** — a blank/error image means a regression.
 
 Drive a different browser:
 
@@ -83,27 +107,33 @@ OPENHWP_CHROME=/path/to/chromium deno run -A --no-lock .claude/skills/run-openhw
 
 ### What the driver does NOT cover
 
-- The real **File → Open** flow uses `window.showOpenFilePicker` (File System
-  Access API), which needs a user gesture + a native picker — not driveable
-  headless. The driver bypasses it with `HwpDocument.createBlankDocument()` to
-  still exercise the render pipeline. To test rendering a *real* `.hwp`, do it in
-  the running desktop app.
+- **File → Open / Save** use the web File System Access API
+  (`showOpenFilePicker` / `showSaveFilePicker`), which need a real user
+  gesture + a native picker — not driveable headless. The driver asserts only
+  that the editor boots to its ready state. To test opening / editing / saving a
+  real `.hwp`, do it in the running desktop app (below), using the studio's
+  **own** menu / `Ctrl+O` / `Ctrl+S` (which carry the gesture — the native OS
+  menu does not).
 
 ## Run — desktop path (real window)
 
-Launches the actual desktop runtime. `deno task dev` uses the CEF backend from
-`deno.json`, which **downloads Chromium (CEF) on first run** (large/slow). To
-skip that download, force the system-webview backend — this is what was run this
-session, and it compiled + started the runtime and served the UI:
+Launches the actual desktop runtime. From the unit root, `deno task dev` uses
+the CEF backend from `apps/desktop/deno.json`, which **downloads Chromium (CEF)
+on first run** (large/slow):
 
 ```bash
-deno desktop --hmr --backend webview --allow-net --allow-read --allow-env main.ts
+deno task dev
 ```
 
-Output ends with `Runtime started` … `Listening on http://127.0.0.1:<port>/` and
-stays running (Ctrl-C to stop). On a session with a display a native window
-opens; on a headless/no-display session the runtime + server start but no visible
-window appears — use the driver above to see the UI. Kill a stuck run:
+To skip the CEF download, force the system-webview backend:
+
+```bash
+cd apps/desktop && deno desktop --hmr --backend webview --allow-net --allow-read --allow-env main.ts
+```
+
+On a session with a display a native window opens showing the full editor; on a
+headless/no-display session the runtime + server start but no window appears —
+use the driver above to see the UI. Kill a stuck run:
 
 ```bash
 pkill -f "deno desktop"
@@ -111,34 +141,38 @@ pkill -f "deno desktop"
 
 ## Gotchas (battle scars from this session)
 
-- **`deno desktop` ships official types (`lib.deno.desktop.d.ts`).** Do **not**
-  hand-write ambient declarations for `Deno.BrowserWindow` / `Deno.MenuItem` — they
-  conflict/drift. Instead set `compilerOptions.lib: ["deno.window", "deno.desktop"]`
-  in `deno.json` (works for plain `deno check`, verified). Plain `deno check`
-  without that lib reports `Property 'BrowserWindow' does not exist on Deno`.
-- **`win.bind(name, handler)` handlers must return a `Promise`.** A plain-object
-  return fails type-check (`TS2739 … missing then/catch/finally`). But marking the
-  handler `async` with no `await` trips the `require-await` lint. Use
-  `() => Promise.resolve({...})` to satisfy both.
-- **The viewer loads the vendored `@rhwp/core`** from `src/ui/vendor/rhwp/rhwp.js`
-  (no CDN). It is wasm-bindgen `--target web` output, so `default()` with no
-  argument loads `rhwp_bg.wasm` relative to the JS module — the two files must stay
-  in the same dir. Because there is no inline import map or remote script, the app
-  ships a strict CSP (`script-src 'self' 'wasm-unsafe-eval'`). Update the engine via
-  `src/ui/vendor/rhwp/README.md`.
-- **`rhwp` needs `globalThis.measureTextWidth`** defined before `init()` (a canvas
-  text-measure callback); `src/ui/app.js` sets it. Without it, layout breaks.
+- **The studio owns the File / Edit menus, not the native OS menu.** File System
+  Access pickers require _transient user activation_; a native-menu →
+  `executeJs` path does not carry that gesture, so file open/save fails from the
+  OS menu. The studio's in-webview menu / shortcuts carry the real gesture. So
+  `main.ts` keeps only a minimal native menu (Reload, Toggle DevTools) and lets
+  the studio drive open/edit/save.
+- **The build skips Rust/wasm-pack.** `scripts/build-studio.ts` copies the
+  committed `apps/studio-host/vendor/rhwp-core` (`@rhwp/core@0.7.19`, the
+  wasm-bindgen `pkg/` output) into the upstream tree as `pkg/`, so no Rust
+  toolchain is needed. The upstream **source** is pinned to the matching
+  `v0.7.19` tag so studio ↔ core APIs stay consistent. Bump both together via
+  `config/rhwp-studio-overrides.json` + `vendor/rhwp-core/PROVENANCE.json`.
+- **`third_party/rhwp` is a sparse partial clone**, not a full submodule — the
+  upstream monorepo is 1.1 GB (samples/pdf/mydocs); a cone sparse-checkout of
+  `rhwp-studio` + `assets` at the pinned commit is ~80 MB. It is gitignored and
+  materialized by `deno task setup`.
+- **Prod builds expose no DEV globals.** Upstream only sets `window.__wasm`
+  under `import.meta.env.DEV`, so the driver cannot poll it. Readiness is gated
+  on the static shell plus `#sb-message` leaving the `...로딩 중...` loading
+  messages without hitting a `...실패`/`...오류` init-failure message.
 - **Astral**: pass the installed browser via `path` (the driver reads
-  `OPENHWP_CHROME`) to avoid a ~150MB Chromium download; launched with
+  `OPENHWP_CHROME`) to avoid a ~150 MB Chromium download; launched with
   `--no-sandbox`.
 
 ## Troubleshooting
 
-- **`TS2739 … Promise<BrowserWindowReturn>` / `TS1356 … mark this function as 'async'`**
-  on a `win.bind` call → the handler must return a Promise. Use `Promise.resolve(...)`
-  (see Gotchas), not a bare object.
-- **`Property 'BrowserWindow' does not exist on type 'typeof Deno'`** → `deno.json`
-  is missing `compilerOptions.lib: ["deno.window", "deno.desktop"]`.
+- **`[driver] studio bundle missing at …`** → the bundle isn't built. Run
+  `deno task setup && deno task build:studio`, then re-run the driver.
+- **`[driver] FAIL (studio boots)` with a `실패`/`오류` message or page errors**
+  → the document engine failed to initialize (e.g. CanvasKit couldn't start).
+  Open `screenshots/studio.png` and re-run with the desktop path to see the
+  console.
 - **Driver hangs / no screenshot** → Chrome path wrong or Astral is downloading
   Chromium on first run. Set `OPENHWP_CHROME` to an existing browser binary.
 - **`deno task dev` seems stuck downloading** → that's CEF (first run). Use the
@@ -146,6 +180,7 @@ pkill -f "deno desktop"
 
 ## The harness
 
-`.claude/skills/run-openhwp/driver.ts` — committed next to this file. It reuses
-the app's own `serveDir({ fsRoot: "src/ui" })` serving and drives the real UI +
-engine. Edit it to add flows (e.g. load a sample `.hwp` fixture) as the app grows.
+`.claude/skills/run-openhwp/driver.ts` — committed next to this file. It serves
+`apps/studio-host/dist` (the same bundle `apps/desktop/main.ts` serves) and
+drives the real embedded editor. Edit it to add flows (e.g. load a sample `.hwp`
+fixture) as the app grows.

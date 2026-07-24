@@ -1,0 +1,12 @@
+{
+  "package": "@rhwp/core",
+  "version": "0.7.19",
+  "source": "npm registry tarball (npm pack @rhwp/core@0.7.19)",
+  "license": "MIT",
+  "purpose": "wasm-bindgen --target web output (pkg/) used as the @wasm alias when building the vendored rhwp-studio editor. Supplied here so the studio build does not need the Rust/wasm-pack toolchain; pinned to match third_party/rhwp@v0.7.19.",
+  "files": {
+    "rhwp.js": "sha256:1db3945f89368b151dd9be85b4edd590b56ddf0e583bdabbf86c1855537174cf",
+    "rhwp_bg.wasm": "sha256:5e68bae80611fdd4d231967b9e13dff0f3f1cdbb17a09a090c2052593c3980e9"
+  },
+  "update": "npm pack @rhwp/core@<version>; tar xzf rhwp-core-<version>.tgz; cp package/{rhwp.js,rhwp_bg.wasm,rhwp.d.ts,rhwp_bg.wasm.d.ts,package.json,LICENSE} apps/studio-host/vendor/rhwp-core/; then bump the matching third_party/rhwp pin in config/rhwp-studio-overrides.json."
+}

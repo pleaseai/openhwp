@@ -4,9 +4,9 @@
 
 **OpenHWP is an open-source HWP/HWPX desktop app built with [Deno desktop](https://docs.deno.com/runtime/desktop/) and [rhwp](https://github.com/edwardkim/rhwp).**
 
-It opens and views Korean HWP and HWPX documents on macOS, Windows, and Linux — no Hancom Office required. Editing is on the roadmap. The [rhwp](https://github.com/edwardkim/rhwp) engine (Rust + WebAssembly) parses and renders documents; OpenHWP is a thin desktop shell around it.
+It opens, edits, and saves Korean HWP and HWPX documents on macOS, Windows, and Linux — no Hancom Office required. The full [rhwp-studio](https://github.com/edwardkim/rhwp) editor (Rust + WebAssembly) does the document work; OpenHWP is a thin desktop shell around it.
 
-> **Status: early / work in progress.** The repository currently holds the project scaffold and docs — there is no application code yet. Both the engine and the Deno desktop runtime are young, so expect breaking changes.
+> **Status: early / work in progress.** OpenHWP is a thin native shell that embeds the full rhwp-studio editor (see Quick start below). Both the engine and the Deno desktop runtime are young, so expect breaking changes.
 
 ## How it works
 
@@ -58,19 +58,22 @@ await writable.close();
 
 ## Quick start
 
-> The application code (`deno.json`'s `desktop` block, `main.ts`, and the UI) does not exist yet. The flow below is the intended shape and fills in as the app is built.
+You need [Deno](https://deno.com) 2.9.0 or later (`deno desktop` arrived in 2.9), plus Node.js and npm to build the studio bundle. Check with `deno --version`.
 
-You need [Deno](https://deno.com) 2.9.0 or later (`deno desktop` arrived in 2.9). Check with `deno --version`.
+OpenHWP embeds the full [rhwp-studio](https://github.com/edwardkim/rhwp) editor. Its bundle (`apps/studio-host/dist`) is not committed, so build it first.
 
 ```sh
-# Run in development
+# 1. Materialize the pinned upstream rhwp checkout (third_party/rhwp) — once
+deno task setup
+
+# 2. Build the studio bundle → apps/studio-host/dist
+deno task build:studio
+
+# 3. Run in development (the apps/desktop shell serves the bundle)
 deno task dev
 
-# Build a standalone binary with the Chromium (CEF) backend
-deno desktop main.ts --backend cef
-
-# Produce platform installers (.dmg / .msi / .deb) — configured via deno.json's desktop.output
-deno desktop main.ts
+# Build a standalone binary / installers (.dmg / .msi / .AppImage) — configured via apps/desktop/deno.json's desktop.output
+deno task build
 ```
 
 ## Roadmap

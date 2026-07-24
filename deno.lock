@@ -10,6 +10,7 @@
     "jsr:@std/internal@^1.0.14": "1.0.14",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
     "jsr:@std/net@^1.0.6": "1.0.6",
+    "jsr:@std/path@1": "1.1.6",
     "jsr:@std/path@^1.1.6": "1.1.6",
     "jsr:@std/streams@^1.1.1": "1.1.1"
   },
@@ -39,7 +40,7 @@
         "jsr:@std/html",
         "jsr:@std/media-types",
         "jsr:@std/net",
-        "jsr:@std/path",
+        "jsr:@std/path@^1.1.6",
         "jsr:@std/streams"
       ]
     },
@@ -63,8 +64,13 @@
     }
   },
   "workspace": {
-    "dependencies": [
-      "jsr:@std/http@1"
-    ]
+    "members": {
+      "apps/desktop": {
+        "dependencies": [
+          "jsr:@std/http@1",
+          "jsr:@std/path@1"
+        ]
+      }
+    }
   }
 }

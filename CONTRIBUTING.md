@@ -9,10 +9,12 @@ By participating, you agree to abide by our [Code of Conduct](./CODE_OF_CONDUCT.
 ```bash
 git clone https://github.com/pleaseai/openhwp.git
 cd openhwp
-deno install        # cache dependencies (once deno.json lands)
+deno task setup          # materialize the pinned upstream rhwp checkout (once)
+deno task build:studio   # build the embedded rhwp-studio editor bundle
 ```
 
-OpenHWP runs on a single **Deno** toolchain (no Node, bun, or mise). You need
+OpenHWP's shell runs on a single **Deno** toolchain, but building the embedded
+rhwp-studio editor bundle also needs **Node.js + npm** (Vite). You need
 [Deno](https://deno.com) **≥ 2.9.0** (`deno desktop` was introduced in 2.9);
 check with `deno --version`. See the [README](./README.en.md) for the full stack.
 
@@ -24,14 +26,14 @@ check with `deno --version`. See the [README](./README.en.md) for the full stack
 4. Open a pull request and fill out the template.
 
 ```bash
+deno task check     # type-check the desktop shell
 deno lint           # lint
 deno fmt --check    # formatting
-deno test           # run the test suite
 ```
 
-> **Note:** application code is not in the repository yet. The app-level tasks
-> (`deno task dev`, the desktop build) land with the implementation; until then
-> these built-in Deno checks are the baseline.
+> **Note:** the headless smoke test (`.claude/skills/run-openhwp/driver.ts`,
+> run in CI) builds and boots the embedded editor; see
+> `.claude/skills/run-openhwp/SKILL.md`. There is no `deno test` suite yet.
 
 ## Commit messages
 
