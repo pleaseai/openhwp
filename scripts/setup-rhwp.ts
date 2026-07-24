@@ -81,11 +81,14 @@ async function exists(path: string): Promise<boolean> {
 }
 
 if (await exists(`${DEST}/.git`)) {
-  // Force the pinned commit (discarding any in-place build mutations — --force
-  // only touches tracked files, so node_modules/pkg survive), then reconcile the
-  // sparse paths against the manifest. Idempotent: a clean checkout already at
-  // the pin is a no-op.
+  // Fetch the pinned commit, then force it (discarding any in-place build
+  // mutations — --force only touches tracked files, so node_modules/pkg
+  // survive) and reconcile the sparse paths. The partial clone only has history
+  // up to clone time, so a manifest bump to a newer upstream commit isn't local
+  // yet — fetch it first (blobless; GitHub serves a tag-reachable SHA directly).
+  // Idempotent: an already-present commit fetches as a fast no-op.
   console.log(`[setup-rhwp] ensuring third_party/rhwp @ ${commit}`);
+  await git(["fetch", "--filter=blob:none", "origin", commit], DEST);
   await git(["checkout", "--force", "--detach", commit], DEST);
   await git(["sparse-checkout", "set", ...sparsePaths], DEST);
 } else {
