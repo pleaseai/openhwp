@@ -10,51 +10,38 @@
 
 ## 동작 방식
 
-OpenHWP는 Deno 하나로 된 툴체인 위에서 돌아갑니다. 데스크톱 껍데기는 얇게 두고 문서와 관련된 일은 모두 rhwp에 맡겨, "문서 엔진"과 "플랫폼 셸"을 분리합니다.
+OpenHWP는 네이티브 셸과 웹 계층, 두 부분으로 이루어진 Deno 워크스페이스입니다. 파싱·레이아웃·렌더링·편집·저장까지 문서와 관련된 일은 모두 웹 계층이 맡고, 그 웹 계층은 **손대지 않은 업스트림 rhwp-studio 편집기**입니다. 셸은 그것을 띄우는 일만 합니다.
 
-- **데스크톱 셸** — `deno desktop`. `Deno.serve()`가 내보내는 화면을 네이티브 창의 webview가 띄웁니다.
-- **렌더링 백엔드** — CEF(Chromium). `deno.json`에 `"backend": "cef"`로 지정하면 모든 OS에서 렌더링이 같고, 아래의 최신 웹 API를 그대로 씁니다.
-- **문서 엔진** — WebAssembly로 올린 rhwp. 셸에 직접 컴파일해 넣지 않고 npm 패키지로 가져옵니다.
-- **파일 열기·저장** — File System Access API.
-- **네이티브 메뉴·창** — Deno desktop 메뉴와 `bindings`.
+| 경로               | 커밋   | 설명                                                                                                   |
+| ------------------ | ------ | ------------------------------------------------------------------------------------------------------ |
+| `apps/desktop`     | 예     | `deno desktop`(CEF) 셸 — 번들을 서빙하고, 창을 열고, 네이티브 메뉴를 답니다.                            |
+| `apps/studio-host` | 일부   | 웹 계층. `vendor/rhwp-core/`(`@rhwp/core` WASM 엔진)는 커밋하고, 빌드 결과인 `dist/`는 커밋하지 않습니다. |
+| `third_party/rhwp` | 아니오 | 업스트림 rhwp. `config/rhwp-studio-overrides.json`에 고정한 커밋으로 스파스 체크아웃해 내려받습니다.     |
+| `scripts/`         | 예     | `setup-rhwp.ts`가 그 고정 커밋을 준비하고, `build-studio.ts`가 번들을 빌드합니다.                        |
 
-### 문서 엔진: rhwp
+### 셸
 
-[`@rhwp/core`](https://www.npmjs.com/package/@rhwp/core)는 WASM 파서·렌더러입니다. 보기 기능에 씁니다.
+`apps/desktop/main.ts`는 백 줄 남짓이고 하는 일은 세 가지입니다.
 
-```js
-import init, { HwpDocument } from "@rhwp/core";
+1. `apps/studio-host/dist`를 `127.0.0.1`의 임의 포트에 묶어 HTTP로 서빙합니다.
+2. `Deno.BrowserWindow`를 열고 그 주소로 이동시킵니다.
+3. 호스트 조작만 담은 네이티브 메뉴를 답니다 — 종료, 새로 고침, 개발자 도구 토글.
 
-await init();
-const doc = new HwpDocument(bytes);
-document.querySelector("#viewer").innerHTML = doc.renderPageSvg(0);
-```
+렌더링은 `apps/desktop/deno.json`의 `"backend": "cef"`로 고른 CEF(Chromium)에서 돌아갑니다. 덕분에 모든 OS에서 webview가 똑같이 동작하고, 아래의 웹 API를 어디서나 쓸 수 있습니다.
 
-[`@rhwp/editor`](https://www.npmjs.com/package/@rhwp/editor)는 iframe으로 임베드하는 전체 편집기 UI입니다. 편집 기능에 씁니다.
+### 소스 오버라이드가 없는 이유
 
-```js
-import { createEditor } from "@rhwp/editor";
+셸이 스튜디오를 `http://127.0.0.1`에서 서빙하고 webview는 이를 보안 컨텍스트로 취급하므로, 업스트림의 **웹** 코드 경로가 그대로 동작합니다. 업스트림 브리지가 WASM 엔진을 올리고, 열기·저장 명령은 File System Access API의 [`showOpenFilePicker`](https://developer.mozilla.org/ko/docs/Web/API/Window/showOpenFilePicker)와 `showSaveFilePicker`를 호출합니다. CEF의 Chromium이 두 API를 모두 구현하므로 손대지 않은 업스트림 빌드가 이미 온전한 편집기로 동작하고, OpenHWP는 소스 패치 없이 그대로 씁니다. 덕분에 (아직 네이티브 파일 선택 API가 없는) Deno 쪽에 파일 선택기를 따로 만들지 않아도 됩니다.
 
-const editor = await createEditor("#editor");
-```
+**열기·편집 메뉴는 네이티브 메뉴로 올리지 않고 스튜디오 자체 메뉴 막대**와 `Cmd`/`Ctrl`+`O`·`S` 단축키에 그대로 둡니다. File System Access 선택기는 사용자가 방금 조작했다는 상태(transient user activation)를 요구하는데, 네이티브 메뉴 클릭은 그 상태를 webview로 넘겨주지 못하기 때문입니다. 그래서 네이티브 메뉴를 편집기에 잇는 일은 불러오기·저장 훅을 노출하는 스튜디오 오버라이드가 필요하며, 아직은 계획 단계입니다.
 
-### 파일 열기·저장: File System Access API
+### 빌드
 
-CEF 백엔드는 Chromium이고 Deno가 앱을 `localhost`(보안 컨텍스트)에서 서빙하므로, 웹 표준 [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker)를 그대로 씁니다. 덕분에 (아직 네이티브 파일 선택 API가 없는) Deno 쪽에 파일 선택기를 따로 만들지 않아도 됩니다.
+`deno task setup`은 `third_party/rhwp`를 준비합니다. 업스트림을 blob 필터와 cone 스파스로 클론해 `rhwp-studio`와 `assets`만 받으므로 전체 1.1 GB 모노레포 대신 80 MB 남짓이면 되고, 체크아웃 위치는 `config/rhwp-studio-overrides.json`에 고정한 커밋입니다.
 
-```js
-// 열기 — .hwp / .hwpx만 고르도록 제한합니다.
-const [handle] = await window.showOpenFilePicker({
-  types: [{ accept: { "application/octet-stream": [".hwp", ".hwpx"] } }],
-});
-const file = await handle.getFile();
-const bytes = new Uint8Array(await file.arrayBuffer());
+`deno task build:studio`는 업스트림 Vite 프로젝트를 제자리에서 빌드합니다. 커밋해 둔 `vendor/rhwp-core`에서 `pkg/`를 넣어 주므로 Rust·`wasm-pack` 툴체인이 필요 없고, 번들된 예제 문서를 지우고, PWA 서비스 워커를 끄고, `vite build --base=/`를 실행합니다. 업스트림 트리는 끝난 뒤 원래대로 되돌리며 결과물은 `apps/studio-host/dist`로 옮깁니다.
 
-// 저장 — 열 때 받은 handle을 재사용하면 다시 묻지 않습니다.
-const writable = await handle.createWritable();
-await writable.write(bytes);
-await writable.close();
-```
+엔진과 스튜디오, 대체 폰트 36종은 모두 로컬에서 서빙하므로 네트워크 없이도 앱이 동작합니다. 예외가 하나 있습니다. 대부분의 HWP 문서가 기본으로 쓰는 함초롬 계열은 업스트림 폰트 로더가 공개 CDN에서 받아 오므로, 이 계열만은 제 글꼴로 렌더링하려면 네트워크가 필요합니다. [#12](https://github.com/pleaseai/openhwp/issues/12)에서 다룹니다.
 
 ## 빠른 시작
 
@@ -78,8 +65,8 @@ deno task build
 
 ## 로드맵
 
-1. **뷰어** — File System Access API로 `.hwp`·`.hwpx`를 열고 `@rhwp/core`로 페이지를 SVG로 렌더링합니다.
-2. **편집기** — `@rhwp/editor`를 임베드하고, 저장·다른 이름으로 저장을 `FileSystemFileHandle`로 디스크에 잇습니다. 네이티브 메뉴와 다중 창을 포함합니다.
+1. **임베드 편집기** — *0.1.0에 반영.* 전체 rhwp-studio 편집기로 `.hwp`·`.hwpx`를 열고, 편집하고, 저장합니다.
+2. **네이티브 통합** — 네이티브 메뉴를 편집기에 잇고, 문서 제목과 저장하지 않은 상태를 창에 반영하고, 앱 브랜딩을 넣습니다. `config/rhwp-studio-overrides.json`에서 관리하는 오버라이드로 들어옵니다.
 3. **내보내기·인쇄** — rhwp 기반 PDF 내보내기와 webview 인쇄.
 4. **패키징** — 서명·공증한 `.dmg`, `.msi`, `.deb`·`.AppImage`·`.rpm`을 CI에서 빌드합니다.
 

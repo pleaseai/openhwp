@@ -10,51 +10,38 @@ It opens, edits, and saves Korean HWP and HWPX documents on macOS, Windows, and 
 
 ## How it works
 
-OpenHWP runs on a single Deno toolchain. It keeps the desktop shell thin and delegates every document concern to rhwp, separating the "document engine" from the "platform shell".
+OpenHWP is a Deno workspace with two halves: a native shell and a web layer. Every document concern — parsing, layout, rendering, editing, and saving — belongs to the web layer, which is the **unmodified upstream rhwp-studio editor**. The shell only hosts it.
 
-- **Desktop shell** — `deno desktop`. A native window's webview displays whatever `Deno.serve()` returns.
-- **Rendering backend** — CEF (Chromium). Setting `"backend": "cef"` in `deno.json` makes rendering identical on every OS and enables the modern web APIs below.
-- **Document engine** — rhwp, loaded as WebAssembly through npm packages rather than compiled into the shell.
-- **File open / save** — the File System Access API.
-- **Native menus / windows** — Deno desktop menus and `bindings`.
+| Path               | Committed? | What it is                                                                                                       |
+| ------------------ | ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| `apps/desktop`     | yes        | The `deno desktop` (CEF) shell — serves the bundle, opens the window, installs the native menu.                   |
+| `apps/studio-host` | partly     | The web layer. `vendor/rhwp-core/` (the `@rhwp/core` WASM engine) is committed; the built `dist/` is not.         |
+| `third_party/rhwp` | no         | Upstream rhwp, materialized as a sparse checkout pinned by `config/rhwp-studio-overrides.json`.                   |
+| `scripts/`         | yes        | `setup-rhwp.ts` materializes that pin; `build-studio.ts` builds the bundle.                                       |
 
-### Document engine: rhwp
+### The shell
 
-Use [`@rhwp/core`](https://www.npmjs.com/package/@rhwp/core), the WASM parser/renderer, for viewing:
+`apps/desktop/main.ts` is around a hundred lines and does three things:
 
-```js
-import init, { HwpDocument } from "@rhwp/core";
+1. Serves `apps/studio-host/dist` over HTTP, bound to `127.0.0.1` on an ephemeral port.
+2. Opens a `Deno.BrowserWindow` and navigates it to that server.
+3. Installs a native menu limited to host operations — Quit, Reload, and Toggle DevTools.
 
-await init();
-const doc = new HwpDocument(bytes);
-document.querySelector("#viewer").innerHTML = doc.renderPageSvg(0);
-```
+Rendering runs on CEF (Chromium), selected by `"backend": "cef"` in `apps/desktop/deno.json`, so the webview behaves identically on every OS and the web APIs below are available everywhere.
 
-Use [`@rhwp/editor`](https://www.npmjs.com/package/@rhwp/editor), the full editor UI embedded as an iframe, for editing:
+### Why there are no source overrides
 
-```js
-import { createEditor } from "@rhwp/editor";
+The shell serves the studio from `http://127.0.0.1`, which the webview treats as a secure context, so upstream's **web** code path works unchanged. Its bridge loads the WASM engine, and its open and save commands call [`showOpenFilePicker`](https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker) and `showSaveFilePicker` from the File System Access API. Chromium implements both in CEF, so the pristine upstream build is already a fully working editor and OpenHWP ships it with zero source patches. The Deno side needs no native file picker (Deno desktop does not ship one yet).
 
-const editor = await createEditor("#editor");
-```
+**File and Edit stay in the studio's own menu bar**, alongside its `Cmd`/`Ctrl`+`O` and `+S` shortcuts, rather than moving to the native menu. The File System Access pickers require transient user activation, and a native menu click does not carry that activation into the webview. Wiring the native menu to the editor therefore needs a studio override that exposes load and save hooks — planned, not present.
 
-### File open / save: the File System Access API
+### The build
 
-The CEF backend is Chromium, and Deno serves the app from `localhost` (a secure context), so OpenHWP uses the standard [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker) directly. As a result, the Deno side needs no native file picker (Deno desktop does not ship one yet).
+`deno task setup` materializes `third_party/rhwp`: a blob-filtered, cone-sparse clone of upstream limited to `rhwp-studio` and `assets` — roughly 80 MB rather than the full 1.1 GB monorepo — checked out at the exact commit pinned in `config/rhwp-studio-overrides.json`.
 
-```js
-// Open — restrict the picker to .hwp / .hwpx.
-const [handle] = await window.showOpenFilePicker({
-  types: [{ accept: { "application/octet-stream": [".hwp", ".hwpx"] } }],
-});
-const file = await handle.getFile();
-const bytes = new Uint8Array(await file.arrayBuffer());
+`deno task build:studio` then builds upstream's own Vite project in place. It supplies `pkg/` from the committed `vendor/rhwp-core` (so no Rust or `wasm-pack` toolchain is required), drops the bundled sample documents, disables the PWA service worker, and runs `vite build --base=/`. The upstream tree is restored afterward and the result moves to `apps/studio-host/dist`.
 
-// Save — reuse the handle from Open to write back without prompting again.
-const writable = await handle.createWritable();
-await writable.write(bytes);
-await writable.close();
-```
+The engine, the studio, and 36 substitute fonts are all served locally, so the app works without a network connection. One exception remains: upstream's font loader fetches the 함초롬 (Hamchorom) family — the default in most HWP documents — from a public CDN, so that family alone needs the network to render in its own typeface. Tracked in [#12](https://github.com/pleaseai/openhwp/issues/12).
 
 ## Quick start
 
@@ -78,8 +65,8 @@ deno task build
 
 ## Roadmap
 
-1. **Viewer** — open `.hwp` / `.hwpx` with the File System Access API and render pages to SVG with `@rhwp/core`.
-2. **Editor** — embed `@rhwp/editor` and wire Save / Save As to disk through `FileSystemFileHandle`, with native menus and multiple windows.
+1. **Embedded editor** — *shipped in 0.1.0.* Open, edit, and save `.hwp` / `.hwpx` through the full rhwp-studio editor.
+2. **Native integration** — bridge the native menu to the editor, reflect the document title and unsaved state in the window, and add app branding. Arrives as overrides tracked in `config/rhwp-studio-overrides.json`.
 3. **Export & print** — PDF export (via rhwp) and the webview print path.
 4. **Packaging** — signed and notarized `.dmg`, `.msi`, and `.deb` / `.AppImage` / `.rpm` builds in CI.
 
