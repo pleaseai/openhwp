@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/pleaseai/openhwp/compare/v0.2.0...v0.2.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **release:** grant V8 the JIT entitlements the Hardened Runtime requires ([#20](https://github.com/pleaseai/openhwp/issues/20)) ([aeec07c](https://github.com/pleaseai/openhwp/commit/aeec07cc2332112852fd9792c23bec5b5ef32866))
+* **release:** sign nested code so notarization succeeds, and surface the notary log ([#18](https://github.com/pleaseai/openhwp/issues/18)) ([202215e](https://github.com/pleaseai/openhwp/commit/202215ebf599b730040c17df70032184fe56a691))
+
 ## [0.2.0](https://github.com/pleaseai/openhwp/compare/v0.1.0...v0.2.0) (2026-07-28)
 
 
