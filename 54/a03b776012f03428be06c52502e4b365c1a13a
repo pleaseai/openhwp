@@ -1,0 +1,25 @@
+.github/workflows/release.yml
+  s_3cabe978142e5e::t_136c80273ed8a7 151-160,163-166,169,172,174,178,181,184,204-216,218-219,224-227,236,239-243,245-265
+  s_3cabe978142e5e::t_7a2f40aecc93a3 11-17,20-23
+  s_3cabe978142e5e::t_65bd8e431ef255 119,136,228-235,237-238,244
+  s_3cabe978142e5e::t_896bd5d0e1ce97 267-274
+  s_3cabe978142e5e::t_b08dec02491891 266
+packaging/macos/entitlements.plist
+  s_3cabe978142e5e::t_4f71be89cb6eb8 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "54a03b776012f03428be06c52502e4b365c1a13a",
+  "prompts": {},
+  "sessions": {
+    "s_3cabe978142e5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b5fb53a-0a69-4beb-87bf-0bb660708e3b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
