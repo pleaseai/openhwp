@@ -9,10 +9,12 @@ name: Release
 # downstream workflows.
 #
 # macOS signing is handled by `deno desktop` itself: with
-# desktop.macos.codesignIdentity set it signs the bundle (including the CEF
+# desktop.macos.codesignIdentity set it signs the app bundle (including the CEF
 # framework and helper apps) and applies Hardened Runtime plus a secure
-# timestamp. Only notarization is manual. The identity is injected below rather
-# than committed, so a contributor without the certificate can still build.
+# timestamp. The .dmg container it wraps that bundle in is left unsigned, so
+# this workflow signs the container and notarizes it. The identity is injected
+# below rather than committed, so a contributor without the certificate can
+# still build.
 
 on:
   release:
@@ -125,18 +127,38 @@ jobs:
           cd ../..
           mv "dist/${{ matrix.arch }}/OpenHWP.dmg" "dist/OpenHWP-${{ matrix.arch }}.dmg"
 
-      - name: Verify signature
+      - name: Verify signature and sign the disk image
+        env:
+          IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
         run: |
           set -euo pipefail
+          APP="dist/${{ matrix.arch }}/OpenHWP.app"
           DMG="dist/OpenHWP-${{ matrix.arch }}.dmg"
-          codesign --verify --strict --verbose=2 "$DMG" || true
-          if [ "${{ steps.signing.outputs.signed }}" = "true" ]; then
-            # A real Developer ID signature must not be ad-hoc.
-            if codesign -dv "$DMG" 2>&1 | grep -q 'Signature=adhoc'; then
-              echo "Expected a Developer ID signature but the bundle is ad-hoc signed." >&2
-              exit 1
-            fi
+
+          # `deno desktop` signs the .app bundle it emits next to the .dmg, but
+          # the .dmg itself is an unsigned container: `codesign -dv` on it always
+          # reports "code object is not signed at all", however the app was
+          # signed. So the signature has to be checked on the .app.
+          codesign --verify --strict --verbose=2 "$APP"
+          SIG="$(codesign -dv "$APP" 2>&1)"
+          echo "$SIG"
+
+          if [ "${{ steps.signing.outputs.signed }}" != "true" ]; then
+            exit 0
           fi
+          if grep -q 'Signature=adhoc' <<< "$SIG"; then
+            echo "Expected a Developer ID signature but the app is ad-hoc signed." >&2
+            exit 1
+          fi
+          if grep -q 'TeamIdentifier=not set' <<< "$SIG"; then
+            echo "The signed app carries no Team ID; notarization would reject it." >&2
+            exit 1
+          fi
+
+          # Sign the container as well — Apple expects the notarized and
+          # stapled artifact to be a signed disk image.
+          codesign --force --sign "$IDENTITY" --timestamp "$DMG"
+          codesign --verify --strict --verbose=2 "$DMG"
 
       - name: Notarize and staple
         if: steps.signing.outputs.signed == 'true'
