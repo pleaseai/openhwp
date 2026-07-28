@@ -1,5 +1,22 @@
 name: release-please
 
+# Maintains a release PR from Conventional Commits; on merge it tags v<version>
+# and creates the GitHub release.
+#
+# Runs with a GitHub App token rather than the default GITHUB_TOKEN so that CI
+# actually runs on the release PR. This repository requires workflow approval
+# for first-time contributors, and github-actions[bot] never becomes one, so a
+# GITHUB_TOKEN-authored release PR left every CI run parked at
+# `action_required` — the PR looked green (only GitHub Apps such as CodeQL and
+# SonarCloud report on it) while `check` and `smoke` had never executed.
+#
+# The token comes from pleaseai-release-bot, installed org-wide:
+# RELEASE_GITHUB_APP_CLIENT_ID is an org variable and
+# RELEASE_GITHUB_APP_PRIVATE_KEY an org secret. This matches the pattern used by
+# pleaseai/shunt and pleaseai/code-intelligence.
+#
+# GITHUB_TOKEN itself needs no permissions here: every write goes through the
+# app token below.
 on:
   push:
     branches: [main]
@@ -9,13 +26,19 @@ permissions: {}
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
-      # Maintains a release PR from Conventional Commits; on merge it tags and
-      # creates the GitHub release. Pinned to a full commit SHA (OSS policy).
+      - name: Create app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          # client-id supersedes the legacy app-id input. It is a public
+          # identifier, so it lives in a variable rather than a secret.
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+
+      # Pinned to a full commit SHA (OSS policy).
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
+          token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
