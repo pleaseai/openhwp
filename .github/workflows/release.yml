@@ -271,8 +271,7 @@ jobs:
             sha256 arm:   "SHA256_ARM64_PLACEHOLDER",
                    intel: "SHA256_X64_PLACEHOLDER"
 
-            url "https://github.com/pleaseai/openhwp/releases/download/v#{version}/OpenHWP-#{arch}.dmg",
-                verified: "github.com/pleaseai/openhwp/"
+            url "https://github.com/pleaseai/openhwp/releases/download/v#{version}/OpenHWP-#{arch}.dmg"
             name "OpenHWP"
             desc "Open-source HWP/HWPX desktop editor"
             homepage "https://github.com/pleaseai/openhwp"

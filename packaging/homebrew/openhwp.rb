@@ -7,7 +7,7 @@
 #
 # Install:  brew install --cask pleaseai/tap/openhwp
 #
-# The version and sha256 values below are placeholders; the release job fills
+# The version and sha256 values are placeholders; the release job fills
 # them from the published SHA256SUMS asset.
 cask "openhwp" do
   arch arm: "darwin-arm64", intel: "darwin-x64"
@@ -16,8 +16,7 @@ cask "openhwp" do
   sha256 arm:   "0000000000000000000000000000000000000000000000000000000000000000",
          intel: "0000000000000000000000000000000000000000000000000000000000000000"
 
-  url "https://github.com/pleaseai/openhwp/releases/download/v#{version}/OpenHWP-#{arch}.dmg",
-      verified: "github.com/pleaseai/openhwp/"
+  url "https://github.com/pleaseai/openhwp/releases/download/v#{version}/OpenHWP-#{arch}.dmg"
   name "OpenHWP"
   desc "Open-source HWP/HWPX desktop editor"
   homepage "https://github.com/pleaseai/openhwp"
