@@ -47,6 +47,18 @@ The Vite config is restored afterward and the result moves to `apps/studio-host/
 
 The engine, the studio, and 36 substitute fonts are all served locally. One exception remains: upstream's font loader maps the 함초롬 (Hamchorom) family — the default in most HWP documents — to a public CDN, so opening a typical document still reaches out to `cdn.jsdelivr.net`, and with no network that family alone falls back to a substitute typeface. Tracked in [#12](https://github.com/pleaseai/openhwp/issues/12).
 
+## Install
+
+macOS builds are signed and notarized. Install the Homebrew cask:
+
+```sh
+brew install --cask pleaseai/tap/openhwp
+```
+
+Or download the `.dmg` directly from the [latest release](https://github.com/pleaseai/openhwp/releases/latest) — `darwin-arm64` for Apple Silicon, `darwin-x64` for Intel.
+
+There are no Windows or Linux installers yet; build from source with the quick start below.
+
 ## Quick start
 
 You need [Deno](https://deno.com) 2.9.0 or later (`deno desktop` arrived in 2.9), plus Node.js and npm to build the studio bundle. Check with `deno --version`.
@@ -69,14 +81,14 @@ deno task build
 
 ## Roadmap
 
-1. **Embedded editor** — *shipped in 0.1.0.* Open, edit, and save `.hwp` / `.hwpx` through the full rhwp-studio editor.
-2. **Native integration** — bridge the native menu to the editor, reflect the document title and unsaved state in the window, support multiple windows, and add app branding. Arrives as overrides tracked in `config/rhwp-studio-overrides.json`.
-3. **Export & print** — PDF export (via rhwp) and the webview print path.
-4. **Packaging** — signed and notarized `.dmg`, `.msi`, and `.deb` / `.AppImage` / `.rpm` builds in CI.
+- [x] **Embedded editor** — *shipped in 0.1.0.* Open, edit, and save `.hwp` / `.hwpx` through the full rhwp-studio editor.
+- [ ] **Native integration** — bridge the native menu to the editor, reflect the document title and unsaved state in the window, support multiple windows, and add app branding. Arrives as overrides tracked in `config/rhwp-studio-overrides.json`.
+- [ ] **Export & print** — PDF export (via rhwp) and the webview print path.
+- [ ] **Packaging** — signed and notarized `.dmg`, `.msi`, and `.deb` / `.AppImage` / `.rpm` builds in CI. macOS ships a signed, notarized `.dmg` as of 0.2.0; Windows and Linux are still to come.
 
 ## Contributing
 
-File bugs and ideas in the [issue tracker](https://github.com/pleaseai/openhwp/issues). The project is early, so its structure changes often.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to contribute. File bugs and ideas in the [issue tracker](https://github.com/pleaseai/openhwp/issues). The project is early, so its structure changes often.
 
 ## Credits
 

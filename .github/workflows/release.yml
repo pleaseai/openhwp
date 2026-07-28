@@ -127,33 +127,76 @@ jobs:
           cd ../..
           mv "dist/${{ matrix.arch }}/OpenHWP.dmg" "dist/OpenHWP-${{ matrix.arch }}.dmg"
 
-      - name: Verify signature and sign the disk image
+      - name: Sign nested code, verify, and sign the disk image
         env:
           IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
         run: |
           set -euo pipefail
-          APP="dist/${{ matrix.arch }}/OpenHWP.app"
-          DMG="dist/OpenHWP-${{ matrix.arch }}.dmg"
+          ARCH="${{ matrix.arch }}"
+          APP="dist/$ARCH/OpenHWP.app"
+          DMG="dist/OpenHWP-$ARCH.dmg"
 
-          # `deno desktop` signs the .app bundle it emits next to the .dmg, but
-          # the .dmg itself is an unsigned container: `codesign -dv` on it always
-          # reports "code object is not signed at all", however the app was
-          # signed. So the signature has to be checked on the .app.
-          codesign --verify --strict --verbose=2 "$APP"
-          SIG="$(codesign -dv "$APP" 2>&1)"
-          echo "$SIG"
+          # `deno desktop` signs only two objects — Contents/MacOS/*.dylib and
+          # the outer bundle. The CEF framework, the helper .apps and the CEF
+          # libraries keep the signature they shipped with, which is not ours.
+          # The notary service requires every nested Mach-O to carry a Developer
+          # ID signature and the hardened runtime, so re-sign inside-out: nested
+          # code first, outer bundle last, or the outer seal is invalidated.
+          sign() {
+            codesign --force --sign "$IDENTITY" --timestamp --options runtime "$@"
+          }
 
-          if grep -q 'Signature=adhoc' <<< "$SIG"; then
-            echo "Expected a Developer ID signature but the app is ad-hoc signed." >&2
+          while IFS= read -r lib; do
+            sign "$lib"
+          done < <(find "$APP/Contents/Frameworks" -name '*.dylib' -type f)
+
+          while IFS= read -r helper; do
+            sign "$helper"
+          done < <(find "$APP/Contents/Frameworks" -maxdepth 1 -name '*.app')
+
+          FW="$APP/Contents/Frameworks/Chromium Embedded Framework.framework"
+          [ -d "$FW" ] && sign "$FW"
+
+          while IFS= read -r dylib; do
+            sign "$dylib"
+          done < <(find "$APP/Contents/MacOS" -name '*.dylib' -type f)
+
+          sign "$APP"
+
+          # Every Mach-O must now be ours, hardened, and not ad-hoc. Checking
+          # here converts an opaque "Invalid" from the notary service into a
+          # named file, and costs seconds instead of a notarization round trip.
+          FAILED=0
+          while IFS= read -r obj; do
+            SIG="$(codesign -dv "$obj" 2>&1 || true)"
+            case "$SIG" in
+              *"Signature=adhoc"*)      echo "::error::ad-hoc signature: $obj"; FAILED=1 ;;
+              *"not signed at all"*)    echo "::error::unsigned: $obj"; FAILED=1 ;;
+              *"TeamIdentifier=not set"*) echo "::error::no Team ID: $obj"; FAILED=1 ;;
+            esac
+            grep -q 'flags=.*runtime' <<< "$SIG" || {
+              echo "::error::hardened runtime missing: $obj"; FAILED=1
+            }
+          done < <(
+            find "$APP" -type f -perm +111 -exec sh -c 'file -b "$1" | grep -q Mach-O' _ {} \; -print
+            find "$APP/Contents/Frameworks" -maxdepth 1 \( -name '*.app' -o -name '*.framework' \)
+          )
+          [ "$FAILED" -eq 0 ] || {
+            echo "Nested code is not uniformly signed; the notary service would reject this." >&2
             exit 1
-          fi
-          if grep -q 'TeamIdentifier=not set' <<< "$SIG"; then
-            echo "The signed app carries no Team ID; notarization would reject it." >&2
-            exit 1
-          fi
+          }
+          codesign --verify --deep --strict --verbose=2 "$APP"
 
-          # Sign the container as well — Apple expects the notarized and
-          # stapled artifact to be a signed disk image.
+          # The .app inside the .dmg is now stale, so rebuild the container from
+          # the re-signed bundle rather than shipping the original.
+          STAGE="$RUNNER_TEMP/dmg-stage"
+          rm -rf "$STAGE" && mkdir -p "$STAGE"
+          cp -R "$APP" "$STAGE/OpenHWP.app"
+          ln -s /Applications "$STAGE/Applications"
+          rm -f "$DMG"
+          hdiutil create -volname OpenHWP -srcfolder "$STAGE" -ov -format UDZO "$DMG"
+
+          # Apple expects the notarized and stapled artifact to be signed too.
           codesign --force --sign "$IDENTITY" --timestamp "$DMG"
           codesign --verify --strict --verbose=2 "$DMG"
 
@@ -176,9 +219,30 @@ jobs:
           KEY="$RUNNER_TEMP/AuthKey.p8"
           printf '%s' "$API_KEY_P8_BASE64" | base64 --decode > "$KEY"
           trap 'rm -f "$KEY"' EXIT
+
+          # `notarytool submit` reports only "status: Invalid" on a rejection —
+          # the per-binary reasons live in the submission log, which is
+          # unreachable once the runner is gone. Capture the id and fetch it.
+          OUT="$RUNNER_TEMP/notarize.txt"
+          set +e
           xcrun notarytool submit "$DMG" \
             --key "$KEY" --key-id "$API_KEY_ID" --issuer "$API_ISSUER_ID" \
-            --wait --timeout 30m
+            --wait --timeout 30m 2>&1 | tee "$OUT"
+          RC=${PIPESTATUS[0]}
+          set -e
+
+          SUBMISSION_ID="$(awk '/^ *id: /{print $2; exit}' "$OUT")"
+          if [ "$RC" -ne 0 ] || ! grep -q 'status: Accepted' "$OUT"; then
+            echo "::error::Notarization did not succeed; fetching the submission log."
+            if [ -n "$SUBMISSION_ID" ]; then
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --key "$KEY" --key-id "$API_KEY_ID" --issuer "$API_ISSUER_ID" || true
+            else
+              echo "No submission id was reported, so there is no log to fetch." >&2
+            fi
+            exit 1
+          fi
+
           xcrun stapler staple "$DMG"
           xcrun stapler validate "$DMG"
 
@@ -300,13 +364,16 @@ jobs:
             homebrew-tap/Casks/openhwp.rb
 
           cd homebrew-tap
-          if git diff --quiet -- Casks/openhwp.rb; then
+          git config user.name "pleaseai-release-bot[bot]"
+          git config user.email "pleaseai-release-bot[bot]@users.noreply.github.com"
+          # Stage first, then compare against HEAD. `git diff` alone ignores
+          # untracked files, so on the run that first creates the cask it would
+          # report no change and skip the commit while still exiting 0.
+          git add Casks/openhwp.rb
+          if git diff --cached --quiet -- Casks/openhwp.rb; then
             echo "Cask already up to date at $VERSION"
             exit 0
           fi
-          git config user.name "pleaseai-release-bot[bot]"
-          git config user.email "pleaseai-release-bot[bot]@users.noreply.github.com"
-          git add Casks/openhwp.rb
           git commit -m "openhwp $VERSION"
           git push
 

@@ -47,6 +47,18 @@ Vite 설정은 끝난 뒤 원래대로 되돌리고 결과물은 `apps/studio-ho
 
 엔진과 스튜디오, 대체 폰트 36종은 모두 로컬에서 서빙합니다. 예외가 하나 있습니다. 대부분의 HWP 문서가 기본으로 쓰는 함초롬 계열을 업스트림 폰트 로더가 공개 CDN으로 연결해 두어, 문서를 열면 `cdn.jsdelivr.net`으로 요청이 나갑니다. 네트워크가 없으면 이 계열만 대체 글꼴로 떨어집니다. [#12](https://github.com/pleaseai/openhwp/issues/12)에서 다룹니다.
 
+## 설치
+
+macOS는 서명·공증한 `.dmg`를 배포합니다. Homebrew 캐스크로 설치하거나
+
+```sh
+brew install --cask pleaseai/tap/openhwp
+```
+
+[릴리스 페이지](https://github.com/pleaseai/openhwp/releases/latest)에서 `.dmg`를 직접 내려받아도 됩니다(Apple Silicon은 `darwin-arm64`, Intel은 `darwin-x64`).
+
+Windows와 Linux 설치 파일은 아직 없습니다. 그 전까지는 아래 빠른 시작대로 소스에서 빌드해 주십시오.
+
 ## 빠른 시작
 
 [Deno](https://deno.com) 2.9.0 이상(`deno desktop`은 2.9에서 들어왔습니다)과, 스튜디오 번들을 빌드할 때 필요한 Node.js·npm이 있어야 합니다. 버전은 `deno --version`으로 확인합니다.
@@ -69,14 +81,14 @@ deno task build
 
 ## 로드맵
 
-1. **임베드 편집기** — *0.1.0에 반영.* 전체 rhwp-studio 편집기로 `.hwp`·`.hwpx`를 열고, 편집하고, 저장합니다.
-2. **네이티브 통합** — 네이티브 메뉴를 편집기에 잇고, 문서 제목과 저장하지 않은 상태를 창에 반영하고, 다중 창을 지원하고, 앱 브랜딩을 넣습니다. `config/rhwp-studio-overrides.json`에서 관리하는 오버라이드로 들어옵니다.
-3. **내보내기·인쇄** — rhwp 기반 PDF 내보내기와 webview 인쇄.
-4. **패키징** — 서명·공증한 `.dmg`, `.msi`, `.deb`·`.AppImage`·`.rpm`을 CI에서 빌드합니다.
+- [x] **임베드 편집기** — *0.1.0에 반영.* 전체 rhwp-studio 편집기로 `.hwp`·`.hwpx`를 열고, 편집하고, 저장합니다.
+- [ ] **네이티브 통합** — 네이티브 메뉴를 편집기에 잇고, 문서 제목과 저장하지 않은 상태를 창에 반영하고, 다중 창을 지원하고, 앱 브랜딩을 넣습니다. `config/rhwp-studio-overrides.json`에서 관리하는 오버라이드로 들어옵니다.
+- [ ] **내보내기·인쇄** — rhwp 기반 PDF 내보내기와 webview 인쇄.
+- [ ] **패키징** — 서명·공증한 `.dmg`, `.msi`, `.deb`·`.AppImage`·`.rpm`을 CI에서 빌드합니다. macOS는 0.2.0부터 서명·공증한 `.dmg`를 배포하고, Windows·Linux는 아직입니다.
 
 ## 기여와 문의
 
-버그와 제안은 [이슈 트래커](https://github.com/pleaseai/openhwp/issues)에 남겨 주십시오. 아직 초기 단계라 구조가 자주 바뀝니다.
+기여 방법은 [CONTRIBUTING.md](./CONTRIBUTING.md)를 봐 주십시오. 버그와 제안은 [이슈 트래커](https://github.com/pleaseai/openhwp/issues)에 남겨 주십시오. 아직 초기 단계라 구조가 자주 바뀝니다.
 
 ## 크레딧
 
