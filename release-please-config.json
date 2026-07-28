@@ -6,7 +6,7 @@
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
       "extra-files": [
-        { "type": "json", "path": "deno.json", "jsonpath": "$.version" }
+        { "type": "json", "path": "apps/desktop/deno.json", "jsonpath": "$.version" }
       ]
     }
   }
