@@ -1,0 +1,23 @@
+.github/workflows/release.yml
+  s_3cabe978142e5e::t_26588d22a1a742 287-297,303-319
+  s_3cabe978142e5e::t_5adf4ecad90935 1-286
+  s_3cabe978142e5e::t_7f45c0135db49b 298-302
+packaging/homebrew/openhwp.rb
+  s_3cabe978142e5e::t_1ba26d8727d5eb 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "14abf776953e1b97aaf0df8489eabc19da1c8cc8",
+  "prompts": {},
+  "sessions": {
+    "s_3cabe978142e5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b5fb53a-0a69-4beb-87bf-0bb660708e3b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
