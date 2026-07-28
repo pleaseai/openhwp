@@ -28,9 +28,11 @@ deno task setup          # materialize third_party/rhwp (sparse, pinned) — onc
 deno task build:studio   # build the studio → apps/studio-host/dist
 ```
 
-`scripts/build-studio.ts` supplies `pkg/` from `vendor/rhwp-core` (so the Rust/wasm-pack step is
-skipped), disables the PWA service worker, drops bundled sample docs, and runs the upstream Vite
-build with `--base=/`. The upstream tree is restored afterward.
+`scripts/build-studio.ts` builds upstream's Vite project in place — see
+[The build](../../README.en.md#the-build) for the full recipe. It restores the Vite config
+afterward, but leaves the rest of its in-place edits (the injected `pkg/`, the dropped samples, the
+npm-refreshed lockfile) in `third_party/rhwp`; the next `deno task setup` force-checks-out the pin
+and discards them.
 
 ## Updating rhwp
 
