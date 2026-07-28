@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened Runtime exceptions required by the embedded V8 and CEF.
+
+  Notarization requires the Hardened Runtime, but the Hardened Runtime denies
+  the executable memory a JIT needs. Deno's V8 runs in the main process and
+  CEF's renderer runs V8 for the page, so without allow-jit the runtime thread
+  aborts with SIGTRAP at startup and the app never opens a window.
+-->
+<plist version="1.0">
+<dict>
+  <!-- V8 (Deno runtime + CEF renderers) maps MAP_JIT pages for generated code. -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <!-- V8 writes to executable pages outside the MAP_JIT convention as well. -->
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <!-- CEF loads its framework and helper libraries at runtime. -->
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+  <!-- CEF helper processes are launched with DYLD_* set by the framework. -->
+  <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+  <true/>
+</dict>
+</plist>

@@ -8,13 +8,19 @@ name: Release
 # token (see release-please.yml) — the default GITHUB_TOKEN does not trigger
 # downstream workflows.
 #
-# macOS signing is handled by `deno desktop` itself: with
-# desktop.macos.codesignIdentity set it signs the app bundle (including the CEF
-# framework and helper apps) and applies Hardened Runtime plus a secure
-# timestamp. The .dmg container it wraps that bundle in is left unsigned, so
-# this workflow signs the container and notarizes it. The identity is injected
+# macOS signing is done here, not by `deno desktop`. Setting
+# desktop.macos.codesignIdentity makes it sign two objects — Contents/MacOS/
+# *.dylib and the outer bundle — with no Hardened Runtime and no entitlements,
+# which the notary service rejects. So this workflow re-signs every nested
+# Mach-O inside-out with a secure timestamp and the Hardened Runtime, grants the
+# JIT entitlements V8 needs (see packaging/macos/entitlements.plist), rebuilds
+# and signs the .dmg, then notarizes and staples it. The identity is injected
 # below rather than committed, so a contributor without the certificate can
 # still build.
+#
+# The app is launched before release. Notarization only proves Gatekeeper will
+# permit the app to run; v0.2.0 shipped notarized and crashed on launch because
+# the Hardened Runtime denied V8 its JIT pages.
 
 on:
   release:
@@ -110,7 +116,7 @@ jobs:
             '.desktop.macos.codesignIdentity = $id' apps/desktop/deno.json > "$tmp"
           mv "$tmp" apps/desktop/deno.json
 
-      - name: Build .dmg
+      - name: Build the app bundle
         run: |
           set -euo pipefail
           # Build into a per-arch directory rather than an arch-suffixed
@@ -127,7 +133,7 @@ jobs:
           cd ../..
           mv "dist/${{ matrix.arch }}/OpenHWP.dmg" "dist/OpenHWP-${{ matrix.arch }}.dmg"
 
-      - name: Sign nested code, verify, and sign the disk image
+      - name: Sign nested code and verify
         env:
           IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
         run: |
@@ -142,26 +148,40 @@ jobs:
           # The notary service requires every nested Mach-O to carry a Developer
           # ID signature and the hardened runtime, so re-sign inside-out: nested
           # code first, outer bundle last, or the outer seal is invalidated.
-          sign() {
+          #
+          # Executables additionally need the Hardened Runtime exceptions in
+          # packaging/macos/entitlements.plist. Notarization requires the
+          # Hardened Runtime, but the Hardened Runtime denies a JIT the
+          # executable memory it needs, so an app signed without allow-jit
+          # notarizes cleanly and then aborts with SIGTRAP on launch. Libraries
+          # carry no entitlements of their own; they inherit the host process's.
+          ENTITLEMENTS="packaging/macos/entitlements.plist"
+
+          sign_lib() {
             codesign --force --sign "$IDENTITY" --timestamp --options runtime "$@"
+          }
+          sign_exe() {
+            codesign --force --sign "$IDENTITY" --timestamp --options runtime \
+              --entitlements "$ENTITLEMENTS" "$@"
           }
 
           while IFS= read -r lib; do
-            sign "$lib"
+            sign_lib "$lib"
           done < <(find "$APP/Contents/Frameworks" -name '*.dylib' -type f)
 
+          # Helper apps host CEF's renderers, which run V8 too.
           while IFS= read -r helper; do
-            sign "$helper"
+            sign_exe "$helper"
           done < <(find "$APP/Contents/Frameworks" -maxdepth 1 -name '*.app')
 
           FW="$APP/Contents/Frameworks/Chromium Embedded Framework.framework"
-          [ -d "$FW" ] && sign "$FW"
+          [ -d "$FW" ] && sign_lib "$FW"
 
           while IFS= read -r dylib; do
-            sign "$dylib"
+            sign_lib "$dylib"
           done < <(find "$APP/Contents/MacOS" -name '*.dylib' -type f)
 
-          sign "$APP"
+          sign_exe "$APP"
 
           # Every Mach-O must now be ours, hardened, and not ad-hoc. Checking
           # here converts an opaque "Invalid" from the notary service into a
@@ -181,11 +201,76 @@ jobs:
             find "$APP" -type f -perm +111 -exec sh -c 'file -b "$1" | grep -q Mach-O' _ {} \; -print
             find "$APP/Contents/Frameworks" -maxdepth 1 \( -name '*.app' -o -name '*.framework' \)
           )
+
+          # Every bundle that hosts V8 must carry allow-jit, or it aborts on
+          # launch. This is the check that would have caught the v0.2.0 crash.
+          while IFS= read -r bundle; do
+            codesign -d --entitlements - --xml "$bundle" 2>/dev/null \
+              | grep -q 'com.apple.security.cs.allow-jit' || {
+                echo "::error::allow-jit entitlement missing: $bundle"; FAILED=1
+              }
+          done < <(
+            echo "$APP"
+            find "$APP/Contents/Frameworks" -maxdepth 1 -name '*.app'
+          )
+
           [ "$FAILED" -eq 0 ] || {
-            echo "Nested code is not uniformly signed; the notary service would reject this." >&2
+            echo "Nested code is not uniformly signed; the notary service would reject this," >&2
+            echo "or the app would abort on launch." >&2
             exit 1
           }
           codesign --verify --deep --strict --verbose=2 "$APP"
+
+      - name: Smoke test the signed app
+        run: |
+          set -euo pipefail
+          APP="dist/${{ matrix.arch }}/OpenHWP.app"
+          case "${{ matrix.arch }}" in
+            darwin-arm64) WANT=arm64 ;;
+            darwin-x64)   WANT=x86_64 ;;
+            *)            WANT="$(uname -m)" ;;
+          esac
+          if [ "$(uname -m)" != "$WANT" ]; then
+            echo "::warning::Built for $WANT on $(uname -m); skipping the launch test. This build is NOT launch-verified."
+            exit 0
+          fi
+          # The executable name comes from the bundle, not a hardcoded guess.
+          EXE="$(plutil -extract CFBundleExecutable raw "$APP/Contents/Info.plist")"
+
+          # Notarization proves Gatekeeper will *permit* the app to run. It says
+          # nothing about whether it does. Launch it: a Hardened Runtime that
+          # denies V8 its JIT pages kills the runtime thread within seconds.
+          LOG="$RUNNER_TEMP/smoke.log"
+          "$APP/Contents/MacOS/$EXE" > "$LOG" 2>&1 &
+          PID=$!
+          for _ in $(seq 1 15); do
+            kill -0 "$PID" 2>/dev/null || break
+            sleep 1
+          done
+
+          if kill -0 "$PID" 2>/dev/null; then
+            kill "$PID" 2>/dev/null || true
+            echo "App stayed up; runtime log:"
+            cat "$LOG"
+            grep -q 'Listening on' "$LOG" || {
+              echo "::error::The app survived but never served the studio bundle."
+              exit 1
+            }
+          else
+            wait "$PID" 2>/dev/null; RC=$?
+            echo "::error::The signed app exited with $RC instead of staying up."
+            [ "$RC" = "133" ] && echo "::error::133 is SIGTRAP — usually a Hardened Runtime JIT denial."
+            cat "$LOG"
+            exit 1
+          fi
+
+      - name: Build and sign the disk image
+        env:
+          IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          APP="dist/${{ matrix.arch }}/OpenHWP.app"
+          DMG="dist/OpenHWP-${{ matrix.arch }}.dmg"
 
           # The .app inside the .dmg is now stale, so rebuild the container from
           # the re-signed bundle rather than shipping the original.
