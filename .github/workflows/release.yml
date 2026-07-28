@@ -257,7 +257,13 @@ jobs:
               exit 1
             }
           else
-            wait "$PID" 2>/dev/null; RC=$?
+            # `wait` reports the app's exit status, which is non-zero here by
+            # definition — so it has to run outside errexit, or the step dies
+            # before printing the status and log this test exists to surface.
+            set +e
+            wait "$PID" 2>/dev/null
+            RC=$?
+            set -e
             echo "::error::The signed app exited with $RC instead of staying up."
             [ "$RC" = "133" ] && echo "::error::133 is SIGTRAP — usually a Hardened Runtime JIT denial."
             cat "$LOG"
