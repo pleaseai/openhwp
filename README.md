@@ -69,14 +69,14 @@ deno task build
 
 ## 로드맵
 
-1. **임베드 편집기** — *0.1.0에 반영.* 전체 rhwp-studio 편집기로 `.hwp`·`.hwpx`를 열고, 편집하고, 저장합니다.
-2. **네이티브 통합** — 네이티브 메뉴를 편집기에 잇고, 문서 제목과 저장하지 않은 상태를 창에 반영하고, 다중 창을 지원하고, 앱 브랜딩을 넣습니다. `config/rhwp-studio-overrides.json`에서 관리하는 오버라이드로 들어옵니다.
-3. **내보내기·인쇄** — rhwp 기반 PDF 내보내기와 webview 인쇄.
-4. **패키징** — 서명·공증한 `.dmg`, `.msi`, `.deb`·`.AppImage`·`.rpm`을 CI에서 빌드합니다.
+- [x] **임베드 편집기** — *0.1.0에 반영.* 전체 rhwp-studio 편집기로 `.hwp`·`.hwpx`를 열고, 편집하고, 저장합니다.
+- [ ] **네이티브 통합** — 네이티브 메뉴를 편집기에 잇고, 문서 제목과 저장하지 않은 상태를 창에 반영하고, 다중 창을 지원하고, 앱 브랜딩을 넣습니다. `config/rhwp-studio-overrides.json`에서 관리하는 오버라이드로 들어옵니다.
+- [ ] **내보내기·인쇄** — rhwp 기반 PDF 내보내기와 webview 인쇄.
+- [ ] **패키징** — 서명·공증한 `.dmg`, `.msi`, `.deb`·`.AppImage`·`.rpm`을 CI에서 빌드합니다. macOS 파이프라인은 0.2.0에 들어왔고, 아직 공증을 다듬는 중입니다.
 
 ## 기여와 문의
 
-버그와 제안은 [이슈 트래커](https://github.com/pleaseai/openhwp/issues)에 남겨 주십시오. 아직 초기 단계라 구조가 자주 바뀝니다.
+기여 방법은 [CONTRIBUTING.md](./CONTRIBUTING.md)를 봐 주십시오. 버그와 제안은 [이슈 트래커](https://github.com/pleaseai/openhwp/issues)에 남겨 주십시오. 아직 초기 단계라 구조가 자주 바뀝니다.
 
 ## 크레딧
 

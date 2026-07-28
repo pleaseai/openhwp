@@ -69,14 +69,14 @@ deno task build
 
 ## Roadmap
 
-1. **Embedded editor** — *shipped in 0.1.0.* Open, edit, and save `.hwp` / `.hwpx` through the full rhwp-studio editor.
-2. **Native integration** — bridge the native menu to the editor, reflect the document title and unsaved state in the window, support multiple windows, and add app branding. Arrives as overrides tracked in `config/rhwp-studio-overrides.json`.
-3. **Export & print** — PDF export (via rhwp) and the webview print path.
-4. **Packaging** — signed and notarized `.dmg`, `.msi`, and `.deb` / `.AppImage` / `.rpm` builds in CI.
+- [x] **Embedded editor** — *shipped in 0.1.0.* Open, edit, and save `.hwp` / `.hwpx` through the full rhwp-studio editor.
+- [ ] **Native integration** — bridge the native menu to the editor, reflect the document title and unsaved state in the window, support multiple windows, and add app branding. Arrives as overrides tracked in `config/rhwp-studio-overrides.json`.
+- [ ] **Export & print** — PDF export (via rhwp) and the webview print path.
+- [ ] **Packaging** — signed and notarized `.dmg`, `.msi`, and `.deb` / `.AppImage` / `.rpm` builds in CI. The macOS pipeline landed in 0.2.0; notarization is still being worked out.
 
 ## Contributing
 
-File bugs and ideas in the [issue tracker](https://github.com/pleaseai/openhwp/issues). The project is early, so its structure changes often.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to contribute. File bugs and ideas in the [issue tracker](https://github.com/pleaseai/openhwp/issues). The project is early, so its structure changes often.
 
 ## Credits
 
