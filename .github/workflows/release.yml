@@ -364,13 +364,16 @@ jobs:
             homebrew-tap/Casks/openhwp.rb
 
           cd homebrew-tap
-          if git diff --quiet -- Casks/openhwp.rb; then
+          git config user.name "pleaseai-release-bot[bot]"
+          git config user.email "pleaseai-release-bot[bot]@users.noreply.github.com"
+          # Stage first, then compare against HEAD. `git diff` alone ignores
+          # untracked files, so on the run that first creates the cask it would
+          # report no change and skip the commit while still exiting 0.
+          git add Casks/openhwp.rb
+          if git diff --cached --quiet -- Casks/openhwp.rb; then
             echo "Cask already up to date at $VERSION"
             exit 0
           fi
-          git config user.name "pleaseai-release-bot[bot]"
-          git config user.email "pleaseai-release-bot[bot]@users.noreply.github.com"
-          git add Casks/openhwp.rb
           git commit -m "openhwp $VERSION"
           git push
 
