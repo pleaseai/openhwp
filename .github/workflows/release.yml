@@ -67,16 +67,18 @@ jobs:
         run: deno task build:studio
 
       - name: Import signing certificate
-        id: signing
         env:
           CERT_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
           CERT_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
           set -euo pipefail
+          # Fail rather than fall back to an ad-hoc signature. Every trigger for
+          # this workflow publishes its output to a GitHub Release and the
+          # Homebrew tap, and Gatekeeper rejects an ad-hoc signed app on every
+          # machine except the one that built it.
           if [ -z "${CERT_P12_BASE64:-}" ]; then
-            echo "::warning::No APPLE_CERTIFICATE_P12_BASE64 — building ad-hoc signed. Gatekeeper will reject this build; it is not distributable."
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "APPLE_CERTIFICATE_P12_BASE64 is not set; refusing to publish an unsigned build." >&2
+            exit 1
           fi
           KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
           KEYCHAIN_PASSWORD="$(uuidgen)"
@@ -93,10 +95,8 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN" \
             $(security list-keychains -d user | tr -d '"')
           rm -f "$RUNNER_TEMP/cert.p12"
-          echo "signed=true" >> "$GITHUB_OUTPUT"
 
       - name: Configure signing identity
-        if: steps.signing.outputs.signed == 'true'
         env:
           IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
         run: |
@@ -143,9 +143,6 @@ jobs:
           SIG="$(codesign -dv "$APP" 2>&1)"
           echo "$SIG"
 
-          if [ "${{ steps.signing.outputs.signed }}" != "true" ]; then
-            exit 0
-          fi
           if grep -q 'Signature=adhoc' <<< "$SIG"; then
             echo "Expected a Developer ID signature but the app is ad-hoc signed." >&2
             exit 1
@@ -161,13 +158,20 @@ jobs:
           codesign --verify --strict --verbose=2 "$DMG"
 
       - name: Notarize and staple
-        if: steps.signing.outputs.signed == 'true'
         env:
           API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
           API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
         run: |
           set -euo pipefail
+          # Same reasoning as the certificate: a signed but un-notarized build
+          # is still refused by Gatekeeper, so a missing key is a hard error.
+          for v in API_KEY_ID API_ISSUER_ID API_KEY_P8_BASE64; do
+            if [ -z "${!v:-}" ]; then
+              echo "APPLE_$v is not set; cannot notarize." >&2
+              exit 1
+            fi
+          done
           DMG="dist/OpenHWP-${{ matrix.arch }}.dmg"
           KEY="$RUNNER_TEMP/AuthKey.p8"
           printf '%s' "$API_KEY_P8_BASE64" | base64 --decode > "$KEY"
