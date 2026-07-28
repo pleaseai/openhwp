@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/pleaseai/openhwp/compare/v0.2.1...v0.2.2) (2026-07-28)
+
+
+### Bug Fixes
+
+* **release:** smoke test a copy so the shipped bundle stays sealed ([#21](https://github.com/pleaseai/openhwp/issues/21)) ([c7f7232](https://github.com/pleaseai/openhwp/commit/c7f72327f51156978815941a0bfc8e271563e01e))
+
 ## [0.2.1](https://github.com/pleaseai/openhwp/compare/v0.2.0...v0.2.1) (2026-07-28)
 
 
