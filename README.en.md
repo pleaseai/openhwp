@@ -12,26 +12,28 @@ It opens, edits, and saves Korean HWP and HWPX documents on macOS, Windows, and 
 
 OpenHWP is a Deno workspace with two halves: a native shell and a web layer. Every document concern — parsing, layout, rendering, editing, and saving — belongs to the web layer, which is the **unmodified upstream rhwp-studio editor**. The shell only hosts it.
 
-| Path               | Committed? | What it is                                                                                                       |
-| ------------------ | ---------- | ---------------------------------------------------------------------------------------------------------------- |
-| `apps/desktop`     | yes        | The `deno desktop` (CEF) shell — serves the bundle, opens the window, installs the native menu.                   |
-| `apps/studio-host` | partly     | The web layer. `vendor/rhwp-core/` (the `@rhwp/core` WASM engine) is committed; the built `dist/` is not.         |
-| `third_party/rhwp` | no         | Upstream rhwp, materialized as a sparse checkout pinned by `config/rhwp-studio-overrides.json`.                   |
-| `scripts/`         | yes        | `setup-rhwp.ts` materializes that pin; `build-studio.ts` builds the bundle.                                       |
+| Path               | Committed? | What it is                                                                                                |
+| ------------------ | ---------- | --------------------------------------------------------------------------------------------------------- |
+| `apps/desktop`     | yes        | The `deno desktop` (CEF) shell — serves the bundle, opens the window, installs the native menu.           |
+| `apps/studio-host` | partly     | The web layer. `vendor/rhwp-core/` (the `@rhwp/core` WASM engine) is committed; the built `dist/` is not. |
+| `third_party/rhwp` | no         | Upstream rhwp, materialized as a sparse checkout pinned by `config/rhwp-studio-overrides.json`.           |
+| `config/`          | yes        | `rhwp-studio-overrides.json` — the upstream pin (repo, tag, commit, sparse paths) and the override list.  |
+| `scripts/`         | yes        | `setup-rhwp.ts` materializes that pin; `build-studio.ts` builds the bundle.                               |
 
 ### The shell
 
-`apps/desktop/main.ts` is around a hundred lines and does three things:
+`apps/desktop/main.ts` is around a hundred lines and does four things:
 
 1. Serves `apps/studio-host/dist` over HTTP, bound to `127.0.0.1` on an ephemeral port.
 2. Opens a `Deno.BrowserWindow` and navigates it to that server.
 3. Installs a native menu limited to host operations — Quit, Reload, and Toggle DevTools.
+4. Exposes a single host binding, `bindings.hostInfo()` (Deno version and platform), to the webview.
 
-Rendering runs on CEF (Chromium), selected by `"backend": "cef"` in `apps/desktop/deno.json`, so the webview behaves identically on every OS and the web APIs below are available everywhere.
+Rendering runs on CEF (Chromium), selected by `"backend": "cef"` in `apps/desktop/deno.json`, so the webview behaves identically on every OS — including the File System Access APIs the studio relies on.
 
 ### Why there are no source overrides
 
-The shell serves the studio from `http://127.0.0.1`, which the webview treats as a secure context, so upstream's **web** code path works unchanged. Its bridge loads the WASM engine, and its open and save commands call [`showOpenFilePicker`](https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker) and `showSaveFilePicker` from the File System Access API. Chromium implements both in CEF, so the pristine upstream build is already a fully working editor and OpenHWP ships it with zero source patches. The Deno side needs no native file picker (Deno desktop does not ship one yet).
+The shell serves the studio from `http://127.0.0.1`, which the webview treats as a secure context, so upstream's **web** code path works unchanged. Its bridge loads the WASM engine, and its open and save commands call [`showOpenFilePicker`](https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker) and `showSaveFilePicker` from the File System Access API. Chromium implements both in CEF, so the upstream build is already a fully working editor and the `overrides` list in `config/rhwp-studio-overrides.json` is empty — no patch to the editor source. (The build still touches upstream's Vite config and its bundled samples; see [The build](#the-build).) The Deno side needs no native file picker (Deno desktop does not ship one yet).
 
 **File and Edit stay in the studio's own menu bar**, alongside its `Cmd`/`Ctrl`+`O` and `+S` shortcuts, rather than moving to the native menu. The File System Access pickers require transient user activation, and a native menu click does not carry that activation into the webview. Wiring the native menu to the editor therefore needs a studio override that exposes load and save hooks — planned, not present.
 
@@ -39,9 +41,11 @@ The shell serves the studio from `http://127.0.0.1`, which the webview treats as
 
 `deno task setup` materializes `third_party/rhwp`: a blob-filtered, cone-sparse clone of upstream limited to `rhwp-studio` and `assets` — roughly 80 MB rather than the full 1.1 GB monorepo — checked out at the exact commit pinned in `config/rhwp-studio-overrides.json`.
 
-`deno task build:studio` then builds upstream's own Vite project in place. It supplies `pkg/` from the committed `vendor/rhwp-core` (so no Rust or `wasm-pack` toolchain is required), drops the bundled sample documents, disables the PWA service worker, and runs `vite build --base=/`. The upstream tree is restored afterward and the result moves to `apps/studio-host/dist`.
+`deno task build:studio` then builds upstream's own Vite project in place. It supplies `pkg/` from the committed `vendor/rhwp-core` (so no Rust or `wasm-pack` toolchain is required) and copies the engine into `public/`, drops the bundled sample documents, installs the studio's npm dependencies from its committed lockfile, disables the PWA service worker, and runs `vite build --base=/`.
 
-The engine, the studio, and 36 substitute fonts are all served locally, so the app works without a network connection. One exception remains: upstream's font loader fetches the 함초롬 (Hamchorom) family — the default in most HWP documents — from a public CDN, so that family alone needs the network to render in its own typeface. Tracked in [#12](https://github.com/pleaseai/openhwp/issues/12).
+The Vite config is restored afterward and the result moves to `apps/studio-host/dist`. The remaining in-place edits — the injected `pkg/`, the dropped samples, the npm-refreshed lockfile — stay in the working tree; the next `deno task setup` force-checks-out the pin and discards them.
+
+The engine, the studio, and 36 substitute fonts are all served locally. One exception remains: upstream's font loader maps the 함초롬 (Hamchorom) family — the default in most HWP documents — to a public CDN, so opening a typical document still reaches out to `cdn.jsdelivr.net`, and with no network that family alone falls back to a substitute typeface. Tracked in [#12](https://github.com/pleaseai/openhwp/issues/12).
 
 ## Quick start
 
@@ -66,7 +70,7 @@ deno task build
 ## Roadmap
 
 1. **Embedded editor** — *shipped in 0.1.0.* Open, edit, and save `.hwp` / `.hwpx` through the full rhwp-studio editor.
-2. **Native integration** — bridge the native menu to the editor, reflect the document title and unsaved state in the window, and add app branding. Arrives as overrides tracked in `config/rhwp-studio-overrides.json`.
+2. **Native integration** — bridge the native menu to the editor, reflect the document title and unsaved state in the window, support multiple windows, and add app branding. Arrives as overrides tracked in `config/rhwp-studio-overrides.json`.
 3. **Export & print** — PDF export (via rhwp) and the webview print path.
 4. **Packaging** — signed and notarized `.dmg`, `.msi`, and `.deb` / `.AppImage` / `.rpm` builds in CI.
 
