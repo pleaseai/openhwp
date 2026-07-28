@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/pleaseai/openhwp/compare/v0.1.0...v0.2.0) (2026-07-28)
+
+
+### Features
+
+* **release:** package and distribute macOS builds via GitHub Releases and Homebrew ([#17](https://github.com/pleaseai/openhwp/issues/17)) ([15bf08a](https://github.com/pleaseai/openhwp/commit/15bf08a9e63270bfda5c7ebb6c296b1cbab32b02))
+
+
+### Bug Fixes
+
+* **release:** point release-please at the deno.json that holds the version ([#14](https://github.com/pleaseai/openhwp/issues/14)) ([47d600c](https://github.com/pleaseai/openhwp/commit/47d600cf122315725c12a706c839fdb3a09dcf7d)), closes [#10](https://github.com/pleaseai/openhwp/issues/10)
+
 ## 0.1.0 (2026-07-24)
 
 

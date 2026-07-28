@@ -1,9 +1,12 @@
 {
   "name": "@openhwp/desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "exports": "./main.ts",
   "compilerOptions": {
-    "lib": ["deno.window", "deno.desktop"]
+    "lib": [
+      "deno.window",
+      "deno.desktop"
+    ]
   },
   "tasks": {
     "dev": "deno desktop --hmr --allow-net --allow-read --allow-env main.ts",
