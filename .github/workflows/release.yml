@@ -18,9 +18,11 @@ name: Release
 # below rather than committed, so a contributor without the certificate can
 # still build.
 #
-# The app is launched before release. Notarization only proves Gatekeeper will
-# permit the app to run; v0.2.0 shipped notarized and crashed on launch because
-# the Hardened Runtime denied V8 its JIT pages.
+# A copy of the app is launched before release. Notarization only proves
+# Gatekeeper will permit the app to run; v0.2.0 shipped notarized and crashed on
+# launch because the Hardened Runtime denied V8 its JIT pages. The copy matters:
+# the app writes a marker file into its own bundle on startup, which would break
+# the signature seal of the bundle being shipped.
 
 on:
   release:
@@ -237,11 +239,21 @@ jobs:
           # The executable name comes from the bundle, not a hardcoded guess.
           EXE="$(plutil -extract CFBundleExecutable raw "$APP/Contents/Info.plist")"
 
+          # Test a copy, never the bundle we ship. On a successful start the app
+          # writes Contents/MacOS/laufey.dylib.update-ok into its own bundle,
+          # which adds an unsealed file and breaks the signature — the notary
+          # service reports that, ten minutes later, as "the signature of the
+          # binary is invalid" on the main executable. The copy is byte-identical,
+          # so launching it proves the same bits run.
+          SMOKE="$RUNNER_TEMP/smoke-app"
+          rm -rf "$SMOKE" && mkdir -p "$SMOKE"
+          cp -R "$APP" "$SMOKE/OpenHWP.app"
+
           # Notarization proves Gatekeeper will *permit* the app to run. It says
           # nothing about whether it does. Launch it: a Hardened Runtime that
           # denies V8 its JIT pages kills the runtime thread within seconds.
           LOG="$RUNNER_TEMP/smoke.log"
-          "$APP/Contents/MacOS/$EXE" > "$LOG" 2>&1 &
+          "$SMOKE/OpenHWP.app/Contents/MacOS/$EXE" > "$LOG" 2>&1 &
           PID=$!
           for _ in $(seq 1 15); do
             kill -0 "$PID" 2>/dev/null || break
@@ -277,6 +289,13 @@ jobs:
           set -euo pipefail
           APP="dist/${{ matrix.arch }}/OpenHWP.app"
           DMG="dist/OpenHWP-${{ matrix.arch }}.dmg"
+
+          # The bundle must still be exactly what was signed. Anything that adds
+          # a file under Contents/ — a launch, a stray .DS_Store — breaks the
+          # seal, and the notary service only reports it as an opaque "signature
+          # of the binary is invalid" after a ten-minute round trip. Seconds here
+          # instead.
+          codesign --verify --deep --strict --verbose=2 "$APP"
 
           # The .app inside the .dmg is now stale, so rebuild the container from
           # the re-signed bundle rather than shipping the original.
