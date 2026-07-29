@@ -16,6 +16,11 @@ const SUB = `${ROOT}third_party/rhwp`;
 const STUDIO = `${SUB}/rhwp-studio`;
 const VENDOR = `${ROOT}apps/studio-host/vendor/rhwp-core`;
 const OUT = `${ROOT}apps/studio-host/dist`;
+// The CEF host cannot open popup windows, so the built bundle gets a
+// window.open shim injected (step 7).
+const SHIM_NAME = "openhwp-popup.js";
+const SHIM_SRC = `${ROOT}apps/studio-host/shims/${SHIM_NAME}`;
+const SHIM_TAG = `<script src="/${SHIM_NAME}"></script>`;
 const CORE_FILES = [
   "rhwp.js",
   "rhwp_bg.wasm",
@@ -116,4 +121,28 @@ if (buildError) throw buildError;
 // 6. Move the freshly built bundle to apps/studio-host/dist.
 await removeIfExists(OUT);
 await Deno.rename(`${STUDIO}/dist`, OUT);
+
+// 7. Install the window.open shim (see the shim for why the CEF host needs it).
+//    Done on the built output rather than on upstream's source, so the studio
+//    itself stays unmodified. A classic (non-module) script tag mirrors what
+//    upstream already does for theme-init.js and runs before the deferred module
+//    bundle, which is what the shim needs. A separate file rather than an inline
+//    script: it stays a real source file (linted, formatted, reviewable) and
+//    survives a script-src CSP if one is ever added.
+await Deno.copyFile(SHIM_SRC, `${OUT}/${SHIM_NAME}`);
+const htmlPath = `${OUT}/index.html`;
+const htmlOrig = await Deno.readTextFile(htmlPath);
+// HTML end tags are case-insensitive and may carry trailing whitespace, so
+// match that way rather than failing the build over upstream's formatting.
+const htmlPatched = htmlOrig.replace(/<\/head\s*>/i, `  ${SHIM_TAG}\n$&`);
+// Fail loudly rather than shipping a bundle where 파일 → 인쇄 silently reports
+// "팝업이 차단되었습니다" again.
+if (htmlPatched === htmlOrig) {
+  throw new Error(
+    `[build-studio] could not inject ${SHIM_NAME} into index.html — no </head> ` +
+      "found; update the injection in scripts/build-studio.ts",
+  );
+}
+await Deno.writeTextFile(htmlPath, htmlPatched);
+
 console.log(`[build-studio] done → ${OUT.replace(ROOT, "")}`);
