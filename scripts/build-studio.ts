@@ -132,7 +132,9 @@ await Deno.rename(`${STUDIO}/dist`, OUT);
 await Deno.copyFile(SHIM_SRC, `${OUT}/${SHIM_NAME}`);
 const htmlPath = `${OUT}/index.html`;
 const htmlOrig = await Deno.readTextFile(htmlPath);
-const htmlPatched = htmlOrig.replace("</head>", `  ${SHIM_TAG}\n</head>`);
+// HTML end tags are case-insensitive and may carry trailing whitespace, so
+// match that way rather than failing the build over upstream's formatting.
+const htmlPatched = htmlOrig.replace(/<\/head\s*>/i, `  ${SHIM_TAG}\n$&`);
 // Fail loudly rather than shipping a bundle where 파일 → 인쇄 silently reports
 // "팝업이 차단되었습니다" again.
 if (htmlPatched === htmlOrig) {

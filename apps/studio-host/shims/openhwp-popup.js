@@ -130,8 +130,10 @@
       if (event.key === "Escape") state.dismiss();
     }
     document.addEventListener("keydown", onKeydown, true);
-    // Same listener inside the frame, so Escape works while it has focus. A
-    // navigated frame replaces its document, so re-register on every load.
+    // Same listener inside the frame, so Escape works while it has focus.
+    // Re-registered on every load: anything that swaps the frame's document —
+    // a navigation, or a caller using document.open()/write(), which fires
+    // load too — drops listeners held on the old one, window-bound included.
     function bindFrameEscape() {
       try {
         frame.contentWindow.document.addEventListener("keydown", onKeydown, true);
