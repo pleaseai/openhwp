@@ -39,7 +39,15 @@
     if (href === "about:blank") return "";
     try {
       const resolved = new URL(href, document.baseURI);
-      return resolved.origin === location.origin ? resolved.href : null;
+      // Protocol as well as origin: an opaque origin serializes to the string
+      // "null", so under one (a file:// page, a sandboxed frame) a javascript:
+      // or data: URL compares equal to the page's own origin and would be
+      // loaded into the frame. The studio is always served over http from the
+      // host, so this is a guard on a context we don't ship, not a live hole.
+      return resolved.origin === location.origin &&
+          resolved.protocol === location.protocol
+        ? resolved.href
+        : null;
     } catch {
       // Not a resolvable URL — leave it to the host rather than guessing.
       return null;
@@ -55,9 +63,16 @@
   // survive navigation.
   function facade(frame, state) {
     return new Proxy({}, {
-      get(_target, prop) {
+      get(_target, prop, receiver) {
         if (prop === "close") return state.dismiss;
         if (prop === "closed") return state.closed;
+        // On a real window these three are self-references. Forwarding them
+        // would hand out the frame's raw window and route around everything
+        // above it — `popup.self.close()` would reach the iframe's own close(),
+        // a no-op, and strand the overlay.
+        if (prop === "window" || prop === "self" || prop === "frames") {
+          return receiver;
+        }
         const win = frame.contentWindow;
         if (!win) return undefined;
         if (prop === "addEventListener" || prop === "removeEventListener") {
