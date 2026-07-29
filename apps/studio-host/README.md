@@ -16,11 +16,11 @@ a `<script>` tag for it (step 7); the shim itself explains the reasoning.
 
 ## Layout
 
-| Path                | Committed?      | What                                                                                                                  |
-| ------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `vendor/rhwp-core/` | yes             | `@rhwp/core@0.7.19` wasm engine (`rhwp.js` + `rhwp_bg.wasm`), the `@wasm` alias for the build. See `PROVENANCE.json`. |
-| `shims/`            | yes             | Host gap-fillers injected into the built bundle. Additive — not upstream source overrides.                            |
-| `dist/`             | no (gitignored) | Built studio bundle — produced by the build below.                                                                    |
+| Path                | Committed?      | What                                                                                                                 |
+| ------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `vendor/rhwp-core/` | yes             | `@rhwp/core@0.8.2` wasm engine (`rhwp.js` + `rhwp_bg.wasm`), the `@wasm` alias for the build. See `PROVENANCE.json`. |
+| `shims/`            | yes             | Host gap-fillers injected into the built bundle. Additive — not upstream source overrides.                           |
+| `dist/`             | no (gitignored) | Built studio bundle — produced by the build below.                                                                   |
 
 The upstream studio **source** is not vendored here; it is materialized at `third_party/rhwp`
 (gitignored) from the pin in `config/rhwp-studio-overrides.json`.

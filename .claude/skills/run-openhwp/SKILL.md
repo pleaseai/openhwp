@@ -148,10 +148,10 @@ pkill -f "deno desktop"
   `main.ts` keeps only a minimal native menu (Reload, Toggle DevTools) and lets
   the studio drive open/edit/save.
 - **The build skips Rust/wasm-pack.** `scripts/build-studio.ts` copies the
-  committed `apps/studio-host/vendor/rhwp-core` (`@rhwp/core@0.7.19`, the
+  committed `apps/studio-host/vendor/rhwp-core` (`@rhwp/core@0.8.2`, the
   wasm-bindgen `pkg/` output) into the upstream tree as `pkg/`, so no Rust
   toolchain is needed. The upstream **source** is pinned to the matching
-  `v0.7.19` tag so studio ↔ core APIs stay consistent. Bump both together via
+  `v0.8.2` tag so studio ↔ core APIs stay consistent. Bump both together via
   `config/rhwp-studio-overrides.json` + `vendor/rhwp-core/PROVENANCE.json`.
 - **`third_party/rhwp` is a sparse partial clone**, not a full submodule — the
   upstream monorepo is 1.1 GB (samples/pdf/mydocs); a cone sparse-checkout of

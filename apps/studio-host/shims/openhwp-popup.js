@@ -18,10 +18,10 @@
 // written for this: `@media screen` styles it as a centred preview with a fixed
 // toolbar, and `@media print` hides the toolbar.
 //
-// Blank *and* same-origin URL popups are handled. The pinned studio (v0.7.19)
-// opens a blank popup and builds into it; v0.8.x instead opens `print.html` —
-// a real same-origin URL — so a blank-only shim would let a future upstream
-// bump silently restore the original bug.
+// Blank *and* same-origin URL popups are handled. The pinned studio (v0.8.2)
+// opens `print.html` — a real same-origin URL — and builds into that document;
+// v0.7.x instead opened a blank popup. Both shapes stay supported so a bump in
+// either direction cannot silently restore the original bug.
 //
 // This is additive, not an upstream source override: the studio is still built
 // unmodified, and `config/rhwp-studio-overrides.json` stays empty.
