@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/pleaseai/openhwp/compare/v0.2.2...v0.2.3) (2026-07-29)
+
+
+### Bug Fixes
+
+* **studio:** make 파일 → 인쇄 work in the desktop app ([#23](https://github.com/pleaseai/openhwp/issues/23)) ([cdf4059](https://github.com/pleaseai/openhwp/commit/cdf40598221a549d9197a37fcd4ffdf6459a8240))
+
 ## [0.2.2](https://github.com/pleaseai/openhwp/compare/v0.2.1...v0.2.2) (2026-07-28)
 
 
