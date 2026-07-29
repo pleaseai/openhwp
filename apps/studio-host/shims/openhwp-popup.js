@@ -66,6 +66,10 @@
       get(_target, prop, receiver) {
         if (prop === "close") return state.dismiss;
         if (prop === "closed") return state.closed;
+        // Same reason `load` is served by the frame element below: an onload
+        // handler parked on the current window is discarded when the frame
+        // navigates, so it would never fire for a URL popup.
+        if (prop === "onload") return frame.onload;
         // On a real window these three are self-references. Forwarding them
         // would hand out the frame's raw window and route around everything
         // above it — `popup.self.close()` would reach the iframe's own close(),
@@ -86,6 +90,10 @@
         return typeof value === "function" ? value.bind(win) : value;
       },
       set(_target, prop, value) {
+        if (prop === "onload") {
+          frame.onload = value;
+          return true;
+        }
         const win = frame.contentWindow;
         if (win) win[prop] = value;
         return true;
@@ -97,15 +105,7 @@
     });
   }
 
-  window.open = function (url) {
-    const href = resolveShimmable(url);
-    if (href === null) {
-      return nativeOpen.apply(window, arguments);
-    }
-
-    const mount = document.body || document.documentElement;
-    if (!mount) return null;
-
+  function createPopupIframe(href) {
     const frame = document.createElement("iframe");
     frame.className = "openhwp-popup";
     frame.setAttribute("title", "OpenHWP");
@@ -120,6 +120,30 @@
       "z-index:2147483647",
     ].join(";");
     if (href) frame.src = href;
+    return frame;
+  }
+
+  // `_self`/`_parent`/`_top` navigate an existing window rather than opening
+  // one, so they are not what CEF blocks and must reach the real window.open.
+  // Anything else — no target, `_blank`, or a name — is a popup request, and a
+  // named one is still better served by the overlay than by the null the host
+  // would return.
+  function isPopupTarget(target) {
+    if (target === undefined || target === null) return true;
+    const name = String(target).toLowerCase();
+    return name !== "_self" && name !== "_parent" && name !== "_top";
+  }
+
+  window.open = function (url, target) {
+    const href = resolveShimmable(url);
+    if (href === null || !isPopupTarget(target)) {
+      return nativeOpen.apply(window, arguments);
+    }
+
+    const mount = document.body || document.documentElement;
+    if (!mount) return null;
+
+    const frame = createPopupIframe(href);
     mount.appendChild(frame);
 
     if (!frame.contentWindow) {
